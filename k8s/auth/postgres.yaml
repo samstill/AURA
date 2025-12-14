@@ -1,0 +1,100 @@
+# =============================================================================
+# Authentik Auth - PostgreSQL
+# =============================================================================
+# PostgreSQL 16 for Authentik data storage
+# Uses PersistentVolumeClaim to persist data across restarts
+# =============================================================================
+
+# PersistentVolumeClaim for PostgreSQL data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authentik-postgres-pvc
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik-postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: project-aura
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi # 1GB for development, increase for production
+  # storageClassName: standard  # Uncomment and set if needed for your cluster
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-postgres
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik-postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: project-aura
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # Important for databases with persistent volumes
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: authentik-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: authentik-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-secrets
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata # Subdirectory to avoid permission issues
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: authentik-postgres-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik-postgres
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: authentik-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

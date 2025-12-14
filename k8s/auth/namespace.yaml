@@ -1,0 +1,11 @@
+# =============================================================================
+# Authentik Auth - Kubernetes Namespace
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik
+    app.kubernetes.io/part-of: project-aura
+    environment: development

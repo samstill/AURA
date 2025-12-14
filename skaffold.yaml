@@ -1,0 +1,81 @@
+# =============================================================================
+# Project Aura - Skaffold Configuration
+# =============================================================================
+# The developer experience engine:
+# - Hot-reload Python files without rebuilding Docker images
+# - Automatic port-forwarding (localhost:30000 -> pod:8000)
+# - Build/Deploy/Watch loop
+# =============================================================================
+
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: aura-backend
+
+# -----------------------------------------------------------------------------
+# Build Configuration
+# -----------------------------------------------------------------------------
+build:
+  # Use local Docker daemon (Minikube's internal Docker)
+  local:
+    push: false
+    useBuildkit: true
+
+  artifacts:
+    - image: aura-backend
+      context: .
+      docker:
+        dockerfile: Dockerfile
+
+      # File Sync: Copy changed files directly to running container
+      # This is THE MAGIC - no Docker rebuild needed for .py changes
+      sync:
+        manual:
+          - src: "src/**/*.py"
+            dest: /app
+            strip: src/
+
+# -----------------------------------------------------------------------------
+# Deploy Configuration
+# -----------------------------------------------------------------------------
+deploy:
+  kubectl: {}
+  # Note: k8s/auth is NOT managed by Skaffold - deploy separately for persistence
+
+# Manifests for aura-backend only
+manifests:
+  rawYaml:
+    - k8s/deployment.yaml
+    - k8s/service.yaml
+
+# -----------------------------------------------------------------------------
+# Port Forwarding
+# -----------------------------------------------------------------------------
+# Note: Authentik is accessible via NodePort 30080 (not managed by Skaffold)
+portForward:
+  - resourceType: service
+    resourceName: aura-backend-svc
+    namespace: default
+    port: 8000
+    localPort: 30000
+
+# -----------------------------------------------------------------------------
+# Development Profiles
+# -----------------------------------------------------------------------------
+profiles:
+  # Production build profile (no hot-reload, optimized image)
+  - name: prod
+    build:
+      artifacts:
+        - image: aura-backend
+          docker:
+            dockerfile: Dockerfile
+            buildArgs:
+              ENVIRONMENT: production
+    deploy:
+      kubectl: {}
+    manifests:
+      rawYaml:
+        - k8s/deployment.yaml
+        - k8s/service.yaml
+        - k8s/ingress.yaml

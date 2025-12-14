@@ -1,0 +1,52 @@
+name: project_aura
+description: "Project Aura - The World's Fastest AI Secretary"
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management (Riverpod 2.0)
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Routing
+  go_router: ^14.0.0
+
+  # Authentication (OAuth2/OIDC)
+  flutter_appauth: ^6.0.0
+  flutter_secure_storage: ^9.0.0
+
+  # Networking
+  dio: ^5.4.0
+  dio_cookie_manager: ^3.1.1
+  cookie_jar: ^4.0.8
+  web_socket_channel: ^2.4.0
+
+  # Serialization
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.8
+  riverpod_generator: ^2.4.0
+  freezed: ^2.4.7
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true

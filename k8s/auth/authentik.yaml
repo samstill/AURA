@@ -1,0 +1,145 @@
+# =============================================================================
+# Authentik Auth - Server and Worker
+# =============================================================================
+# Authentik identity provider with web UI and background worker
+#
+# VERSION POLICY: Do NOT use :latest tag - Authentik stopped updating it.
+# Check https://goauthentik.io/docs/releases for new versions.
+# Current: 2025.10.2 (update periodically)
+# =============================================================================
+
+# Authentik Server (Web UI + API)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-server
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: project-aura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: authentik-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: authentik-server
+    spec:
+      containers:
+        - name: authentik
+          image: ghcr.io/goauthentik/server:2025.10.2
+          args: ["server"]
+          ports:
+            - containerPort: 9000
+              name: http
+            - containerPort: 9443
+              name: https
+          envFrom:
+            - secretRef:
+                name: authentik-secrets
+          env:
+            - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+              value: "false"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /-/health/live/
+              port: 9000
+            initialDelaySeconds: 180
+            periodSeconds: 15
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /-/health/ready/
+              port: 9000
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            failureThreshold: 10
+
+---
+# Authentik Worker (Background tasks)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-worker
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik-worker
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: project-aura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: authentik-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: authentik-worker
+    spec:
+      containers:
+        - name: authentik
+          image: ghcr.io/goauthentik/server:2025.10.2
+          args: ["worker"]
+          envFrom:
+            - secretRef:
+                name: authentik-secrets
+          env:
+            - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+              value: "false"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+# ClusterIP Service (internal access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: authentik-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9000
+    - name: https
+      port: 443
+      targetPort: 9443
+
+---
+# NodePort Service (local development access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik-nodeport
+  namespace: aura-auth
+  labels:
+    app.kubernetes.io/name: authentik
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: authentik-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9000
+      nodePort: 30080
