@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: aura-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aura
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ---------------------------------------------------------------------------
+  # MCP Servers (Sidecars)
+  # ---------------------------------------------------------------------------
+  mcp-basic:
+    image: ghcr.io/modelcontextprotocol/servers/time:latest
+    container_name: mcp-basic
+    environment:
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

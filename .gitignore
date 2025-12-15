@@ -84,6 +84,7 @@ Thumbs.db
 *.kubeconfig
 kubeconfig
 .minikube/
+k8s/secrets.yaml
 
 # -----------------------------------------------------------------------------
 # Testing & Coverage

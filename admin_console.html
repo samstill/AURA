@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Aura Skill Store</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.5);
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1,
+        h2 {
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        h2 {
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Container & Glass Panels */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--glass-shadow);
+            margin-bottom: 2rem;
+        }
+
+        /* Admin Form */
+        .form-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        input,
+        select {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        button.primary-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        button.primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 25px var(--accent-glow);
+        }
+
+        /* Skill Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Glass Card */
+        .card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.3s ease, border-color 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 220px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            opacity: 0.5;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .tool-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-actions {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Status & Switches */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #475569;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+
+        .active .dot {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .active-text {
+            color: var(--success);
+            font-weight: 500;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .inactive-text {
+            color: var(--text-secondary);
+        }
+
+        .btn-connect {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .btn-connect:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-connect.connected {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        .btn-connect.connected:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-details {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-details:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        /* Logs */
+        #logs {
+            background: #000;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>⚡ Aura Skill Store</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Manage and deploy agentic capabilities.</p>
+
+        <!-- ADMIN SECTION -->
+        <h2>Admin Registry</h2>
+        <div class="glass-panel">
+            <div class="form-group">
+                <input type="text" id="tName" placeholder="Tool Name (e.g. linear_client)">
+                <input type="text" id="tEndpoint" placeholder="Endpoint URL (e.g. http://localhost:8001)">
+                <select id="tAuth">
+                    <option value="none">No Auth</option>
+                    <option value="api_key">API Key</option>
+                    <option value="oauth2">OAuth2</option>
+                </select>
+            </div>
+            <input type="text" id="tDesc" placeholder="Description of capabilities..."
+                style="width: 100%; box-sizing: border-box; margin-bottom: 1.5rem;">
+            <button class="primary-btn" onclick="registerTool()">Register Tool</button>
+        </div>
+
+        <!-- USER SECTION -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+            <h2 style="margin: 0; border: none; padding: 0;">My Skills</h2>
+            <button onclick="fetchTools()"
+                style="background:none; border:none; color: var(--accent); cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.2rem;">↻</span> Refresh
+            </button>
+        </div>
+
+        <div id="toolGrid" class="grid">
+            <!-- Cards injected here -->
+        </div>
+
+        <!-- LOGS -->
+        <h2 style="margin-top: 3rem; font-size: 1rem;">System Logs</h2>
+        <div id="logs"> > System Initialized...</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:30000/api/v1';
+
+        // --- 1. ADMIN: Register Tool ---
+        async function registerTool() {
+            const payload = {
+                name: document.getElementById('tName').value,
+                description: document.getElementById('tDesc').value,
+                mcp_endpoint: document.getElementById('tEndpoint').value,
+                auth_type: document.getElementById('tAuth').value
+            };
+
+            log(`Registering ${payload.name}...`);
+            try {
+                const res = await fetch(`${API_BASE}/admin/tools`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                log(`✅ Success: Registered ${data.tool.name}`);
+                fetchTools(); // Refresh grid
+            } catch (e) {
+                log(`❌ Error: ${e}`);
+            }
+        }
+
+        // --- 2. USER: Fetch Tools ---
+        async function fetchTools() {
+            log('Fetching available tools...');
+            try {
+                const res = await fetch(`${API_BASE}/tools`);
+                const tools = await res.json();
+
+                if (Array.isArray(tools)) {
+                    renderGrid(tools);
+                    log(`Loaded ${tools.length} active tools.`);
+                } else {
+                    log(`❌ API Error: Expected array, got ${JSON.stringify(tools)}`);
+                    renderGrid([]);
+                }
+            } catch (e) {
+                log(`❌ Error fetching tools: ${e}`);
+            }
+        }
+
+        // --- 3. USER: Connect Tool ---
+        async function toggleConnection(id, currentStatus) {
+            const newState = !currentStatus;
+            log(`Switching Tool ${id} to ${newState ? 'ON' : 'OFF'}...`);
+
+            try {
+                const res = await fetch(`${API_BASE}/tools/${id}/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: newState })
+                });
+
+                if (res.ok) {
+                    log(`✅ Tool Updated.`);
+                    fetchTools();
+                }
+            } catch (e) {
+                log(`❌ Update Failed: ${e}`);
+            }
+        }
+
+        // --- UI Helpers ---
+        function renderGrid(tools) {
+            const grid = document.getElementById('toolGrid');
+            grid.innerHTML = tools.map(t => {
+                const isEnabled = t.is_enabled;
+                const statusClass = isEnabled ? 'active' : '';
+                const buttonText = isEnabled ? 'Disconnect' : 'Connect';
+                const buttonClass = isEnabled ? 'btn-connect connected' : 'btn-connect';
+
+                // Deterministic icon based on name (just for visuals)
+                const icon = t.name.includes('cal') ? '📅' :
+                    t.name.includes('mail') ? '✉️' :
+                        t.name.includes('linear') ? '🔷' : '🔧';
+
+                return `
+                <div class="card ${statusClass}">
+                    <div>
+                        <div class="card-header">
+                            <div class="tool-icon">${icon}</div>
+                            <span class="badge">${t.auth_type}</span>
+                        </div>
+                        <h3 class="card-title">${t.name}</h3>
+                        <p class="card-desc">${t.description}</p>
+                    </div>
+                    
+                    <div class="card-actions">
+                         <div class="status-indicator ${statusClass}">
+                            <span class="dot"></span>
+                            <span class="${isEnabled ? 'active-text' : 'inactive-text'}">
+                                ${isEnabled ? 'Connected' : 'Offline'}
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <button class="btn-details" onclick="alert('Endpoint: ${t.mcp_endpoint}\\nID: ${t.id}')">Details</button>
+                            <button class="${buttonClass}" onclick="toggleConnection('${t.id}', ${t.is_enabled})">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function log(msg) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            logs.innerHTML = `> [${time}] ${msg}<br>` + logs.innerHTML;
+        }
+
+        // Init
+        fetchTools();
+    </script>
+</body>
+
+</html>

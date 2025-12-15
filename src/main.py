@@ -19,6 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from routers import chat, voice, auth
 from services.authentik_service import authentik_service
+from services.llm_service import llm_service
+from services.router_service import router_service
+from services.database_service import database_service
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +51,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Authentik initialization warning: {e}")
     
+    # Initialize Router Service (sentence-transformers)
+    try:
+        router_service.initialize()
+        logger.info("✅ Router service initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  Router initialization warning: {e}")
+    
+    # Initialize LLM Service (Gemini)
+    try:
+        llm_service.initialize()
+        logger.info("✅ LLM service initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  LLM initialization warning: {e}")
+
+    # Initialize Database Service
+    try:
+        await database_service.connect()
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+    
     # TODO: Initialize other services
     # - Database pool
     # - Redis client
@@ -57,7 +80,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("🛑 Project Aura shutting down...")
-    # TODO: Close connections gracefully
+    await database_service.disconnect()
 
 
 app = FastAPI(
@@ -83,6 +106,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Aura-Route"],
 )
 
 # -----------------------------------------------------------------------------
@@ -150,3 +174,8 @@ async def root():
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["Voice"])
+
+# Late import to avoid circular dependencies if any
+from routers import tools
+app.include_router(tools.router, prefix="/api/v1", tags=["Tools"])
+

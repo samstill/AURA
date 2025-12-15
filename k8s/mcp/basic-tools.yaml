@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-basic
+  labels:
+    app: mcp-basic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-basic
+  template:
+    metadata:
+      labels:
+        app: mcp-basic
+    spec:
+      containers:
+        - name: server
+          # A simple image that exposes time/math via MCP
+          # Using the standard reference implementation
+          image: mcp-basic:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-basic-svc
+spec:
+  selector:
+    app: mcp-basic
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

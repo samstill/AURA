@@ -91,8 +91,26 @@ class Settings(BaseSettings):
     qdrant_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     
+    # -------------------------------------------------------------------------
+    # Google Gemini Configuration
+    # -------------------------------------------------------------------------
+    google_api_key: Optional[str] = None
+    gemini_fast_model: str = "gemini-2.5-flash"
+    gemini_smart_model: str = "gemini-3-pro-preview"
+    
+    # -------------------------------------------------------------------------
+    # Multi-Provider Configuration (Groq & OpenRouter)
+    # -------------------------------------------------------------------------
+    groq_api_key: Optional[str] = None
+    groq_fast_model: str = "llama-3.1-8b-instant"
+    groq_smart_model: str = "llama-3.3-70b-versatile"
+    
+    openrouter_api_key: Optional[str] = None
+    openrouter_fast_model: str = "meta-llama/llama-3-8b-instruct:free"
+    openrouter_smart_model: str = "tngtech/deepseek-r1t-chimera:free"
+    
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         env_file_encoding = "utf-8"
         case_sensitive = False
 
