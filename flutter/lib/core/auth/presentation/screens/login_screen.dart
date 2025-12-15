@@ -4,7 +4,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
 import '../../data/data.dart';
@@ -28,13 +27,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
   FlowChallenge? _currentChallenge;
 
+  bool _flowStarted = false;
 
   @override
   void initState() {
     super.initState();
     // Defer auth flow start until after widget tree is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startAuthFlow();
+      // Don't start flow if already authenticated (router will redirect)
+      final isAuthenticated = ref.read(isAuthenticatedProvider);
+      if (isAuthenticated) {
+        debugPrint('⏭️ Already authenticated, skipping flow start');
+        return;
+      }
+      
+      if (!_flowStarted) {
+        _flowStarted = true;
+        _startAuthFlow();
+      }
     });
   }
 
@@ -46,7 +56,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _startAuthFlow() async {
+  Future<void> _startAuthFlow({int retryCount = 0}) async {
+    // Guard against multiple calls
+    if (_isLoading && retryCount == 0) return;
+    
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -56,12 +69,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (!mounted) return;
 
+    // If we get a flow error on the first try, it might be a race condition after logout
+    // Wait a bit and retry once
+    if (result.challenge?.component == FlowComponentType.flowError && retryCount < 2) {
+      debugPrint('⚠️ Got flow error on attempt ${retryCount + 1}, retrying...');
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        // Reset the flow state and try again
+        await ref.read(authControllerProvider.notifier).restartAuthFlow();
+        await _startAuthFlow(retryCount: retryCount + 1);
+      }
+      return;
+    }
+
     setState(() {
       _isLoading = false;
       if (result.success) {
         _currentChallenge = result.challenge;
       } else {
         _errorMessage = result.error?.displayError ?? 'Failed to start login';
+      }
+    });
+  }
+
+  /// Restart the auth flow - used when user wants to change account
+  Future<void> _restartAuthFlow() async {
+    // Clear form fields
+    _emailController.clear();
+    _passwordController.clear();
+    _totpController.clear();
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _currentChallenge = null;
+    });
+
+    final result = await ref.read(authControllerProvider.notifier).restartAuthFlow();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+      if (result.success) {
+        _currentChallenge = result.challenge;
+      } else {
+        _errorMessage = result.error?.displayError ?? 'Failed to restart login';
       }
     });
   }
@@ -120,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _handleFlowResult(result);
   }
 
-  void _handleFlowResult(FlowResult result) {
+  Future<void> _handleFlowResult(FlowResult result) async {
     setState(() {
       _isLoading = false;
       
@@ -132,10 +185,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _currentChallenge = result.challenge;
         
         if (result.challenge!.isSuccess) {
-          context.go('/');
+          debugPrint('🎉 Auth success - navigating to home...');
+          _isLoading = true;
         }
       }
     });
+    
+    // On successful authentication, just show loading state
+    // The AuthController already notified AuthChangeNotifier
+    // which will trigger the router's refreshListenable to redirect
+    if (result.challenge?.isSuccess == true) {
+      debugPrint('🎉 Auth success - router will redirect automatically');
+      // Keep loading state - router's redirect will navigate to home
+    }
   }
 
   @override
@@ -235,6 +297,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return _buildMfaStage(theme, colorScheme);
       case FlowComponentType.accessDenied:
         return _buildAccessDeniedStage(theme, colorScheme);
+      case FlowComponentType.flowError:
+        return _buildFlowErrorStage(theme, colorScheme);
+      case FlowComponentType.redirect:
+        // Success - show loading while router navigates
+        return const Column(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Login successful! Redirecting...'),
+          ],
+        );
       default:
         return _buildUnknownStage(theme);
     }
@@ -302,7 +375,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: _startAuthFlow,
+                  onPressed: _isLoading ? null : _restartAuthFlow,
                   tooltip: 'Sign in with different account',
                 ),
               ],
@@ -406,19 +479,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        OutlinedButton(onPressed: _startAuthFlow, child: const Text('Try Again')),
+        OutlinedButton(onPressed: _isLoading ? null : _restartAuthFlow, child: const Text('Try Again')),
+      ],
+    );
+  }
+
+  Widget _buildFlowErrorStage(ThemeData theme, ColorScheme colorScheme) {
+    final challenge = _currentChallenge as FlowErrorChallenge?;
+    
+    return Column(
+      children: [
+        Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+        const SizedBox(height: 16),
+        Text('Authentication Error', style: theme.textTheme.titleLarge?.copyWith(color: colorScheme.error)),
+        const SizedBox(height: 8),
+        Text(
+          challenge?.errorMessage ?? 'An error occurred during authentication. Please try again.',
+          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+          textAlign: TextAlign.center,
+        ),
+        if (challenge?.requestId != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Request ID: ${challenge!.requestId}',
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+          ),
+        ],
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: _isLoading ? null : _restartAuthFlow,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Start Over'),
+        ),
       ],
     );
   }
 
   Widget _buildUnknownStage(ThemeData theme) {
+    // Log the unknown stage for debugging
+    debugPrint('⚠️ Unknown stage component: ${_currentChallenge?.component.value}');
+    debugPrint('⚠️ Raw data: ${_currentChallenge?.rawData}');
+    
     return Column(
       children: [
         const Icon(Icons.help_outline, size: 64),
         const SizedBox(height: 16),
         Text('Unknown Stage', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 8),
+        Text(
+          'Component: ${_currentChallenge?.component.value ?? "null"}',
+          style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+        ),
         const SizedBox(height: 16),
-        OutlinedButton(onPressed: _startAuthFlow, child: const Text('Restart')),
+        OutlinedButton(onPressed: _isLoading ? null : _restartAuthFlow, child: const Text('Restart')),
       ],
     );
   }
@@ -447,7 +560,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 24),
         OutlinedButton.icon(
-          onPressed: _startAuthFlow,
+          onPressed: _isLoading ? null : _restartAuthFlow,
           icon: const Icon(Icons.refresh),
           label: const Text('Retry'),
         ),

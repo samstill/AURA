@@ -6,12 +6,15 @@
 enum FlowComponentType {
   identification('ak-stage-identification'),
   password('ak-stage-password'),
+  userLogin('ak-stage-user-login'),
   authenticatorTotp('ak-stage-authenticator-totp'),
   authenticatorWebauthn('ak-stage-authenticator-webauthn'),
   authenticatorValidate('ak-stage-authenticator-validate'),
   accessDenied('ak-stage-access-denied'),
+  flowError('ak-stage-flow-error'),
   redirect('xak-flow-redirect'),
   shell('ak-flow-shell-loading'),
+  autosubmit('ak-stage-autosubmit'),
   unknown('unknown');
 
   final String value;
@@ -56,6 +59,17 @@ class FlowChallenge {
         return RedirectChallenge.fromJson(json);
       case FlowComponentType.accessDenied:
         return AccessDeniedChallenge.fromJson(json);
+      case FlowComponentType.flowError:
+        return FlowErrorChallenge.fromJson(json);
+      case FlowComponentType.userLogin:
+      case FlowComponentType.autosubmit:
+        // These stages complete automatically - treat as redirect
+        return RedirectChallenge(
+          component: FlowComponentType.redirect,
+          flowInfo: json['flow_info']?['title'] as String?,
+          rawData: json,
+          redirectTo: '/',
+        );
       default:
         return FlowChallenge._internal(
           component: component,
@@ -194,6 +208,30 @@ class AccessDeniedChallenge extends FlowChallenge {
       flowInfo: json['flow_info']?['title'] as String?,
       rawData: json,
       errorMessage: json['error_message'] as String? ?? json['message'] as String?,
+    );
+  }
+}
+
+/// Flow error challenge - when the flow encounters an error
+class FlowErrorChallenge extends FlowChallenge {
+  final String? requestId;
+  final String? errorMessage;
+
+  FlowErrorChallenge({
+    required super.component,
+    super.flowInfo,
+    required super.rawData,
+    this.requestId,
+    this.errorMessage,
+  }) : super._internal();
+
+  factory FlowErrorChallenge.fromJson(Map<String, dynamic> json) {
+    return FlowErrorChallenge(
+      component: FlowComponentType.flowError,
+      flowInfo: json['flow_info']?['title'] as String?,
+      rawData: json,
+      requestId: json['request_id'] as String?,
+      errorMessage: json['error'] as String? ?? json['message'] as String?,
     );
   }
 }

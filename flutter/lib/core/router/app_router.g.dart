@@ -6,9 +6,9 @@ part of 'app_router.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$appRouterHash() => r'5591e03dc3ab0546fd5b7e6b6ec0b9623ee79a3e';
+String _$appRouterHash() => r'd5649fea4cf80e364da90486e91cf808a7ea39d8';
 
-/// GoRouter provider
+/// GoRouter provider - watches auth state directly
 ///
 /// Copied from [appRouter].
 @ProviderFor(appRouter)

@@ -8,7 +8,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import '../auth/presentation/screens/login_screen.dart';
-import '../auth/presentation/controllers/auth_controller.dart';
 
 part 'app_router.g.dart';
 
@@ -19,17 +18,47 @@ class AppRoutes {
   static const String chat = '/chat';
 }
 
-/// GoRouter provider
+/// ValueNotifier that listens to auth state and notifies GoRouter
+class AuthChangeNotifier extends ChangeNotifier {
+  AuthChangeNotifier._();
+  
+  static final instance = AuthChangeNotifier._();
+  
+  bool _isAuthenticated = false;
+  
+  bool get isAuthenticated => _isAuthenticated;
+  
+  void setAuthenticated(bool value) {
+    if (_isAuthenticated != value) {
+      debugPrint('🔔 AuthChangeNotifier: isAuthenticated changed to $value');
+      _isAuthenticated = value;
+      notifyListeners();
+    }
+  }
+}
+
+/// Stable GoRouter instance - created once and reused
+GoRouter? _routerInstance;
+
+/// GoRouter provider - returns stable instance
 @riverpod
 GoRouter appRouter(AppRouterRef ref) {
-  final authState = ref.watch(authControllerProvider);
+  // Only create router once
+  if (_routerInstance != null) {
+    return _routerInstance!;
+  }
   
-  return GoRouter(
+  debugPrint('🧭 Creating GoRouter instance');
+  
+  _routerInstance = GoRouter(
     initialLocation: AppRoutes.login,
     debugLogDiagnostics: true,
+    refreshListenable: AuthChangeNotifier.instance,
     redirect: (context, state) {
-      final isAuthenticated = authState.valueOrNull?.isAuthenticated ?? false;
+      final isAuthenticated = AuthChangeNotifier.instance.isAuthenticated;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
+      
+      debugPrint('🧭 Router redirect: authenticated=$isAuthenticated, location=${state.matchedLocation}');
       
       // Redirect to login if not authenticated
       if (!isAuthenticated && !isLoggingIn) {
@@ -61,4 +90,7 @@ GoRouter appRouter(AppRouterRef ref) {
       ),
     ),
   );
+  
+  return _routerInstance!;
 }
+

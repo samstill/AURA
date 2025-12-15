@@ -56,10 +56,64 @@ class AuthRepository {
 
   AuthRepository({required this.client, required this.storage});
 
+  /// Static lock to prevent multiple concurrent flow starts
+  static bool _flowInProgress = false;
+  static Future<FlowResult>? _pendingFlow;
+
+  /// Reset flow state - call before starting a new flow when user wants to restart
+  Future<void> resetFlow() async {
+    debugPrint('🔄 Resetting flow state...');
+    _flowInProgress = false;
+    _pendingFlow = null;
+    
+    // Try to cancel the current flow in Authentik
+    try {
+      debugPrint('🚫 Calling Authentik cancel endpoint...');
+      await client.get('/flows/-/cancel/');
+    } catch (e) {
+      // Ignore errors - the cancel might fail if no flow is in progress
+      debugPrint('⚠️ Cancel endpoint failed (expected if no flow): $e');
+    }
+  }
+
+  /// Clear all session data - use for complete logout
+  Future<void> clearSession() async {
+    debugPrint('🗑️ Clearing all session data...');
+    _flowInProgress = false;
+    _pendingFlow = null;
+    await storage.deleteAll();
+    
+    // Try to cancel any active flow
+    try {
+      await client.get('/flows/-/cancel/');
+    } catch (e) {
+      debugPrint('⚠️ Cancel endpoint failed: $e');
+    }
+  }
+
   /// Start a new authentication flow
   Future<FlowResult> startFlow({String? flowSlug}) async {
+    // If a flow is already in progress, return the pending result
+    if (_flowInProgress && _pendingFlow != null) {
+      debugPrint('⏳ Flow already in progress, returning pending...');
+      return _pendingFlow!;
+    }
+    
+    _flowInProgress = true;
+    _pendingFlow = _doStartFlow(flowSlug);
+    
+    try {
+      final result = await _pendingFlow!;
+      return result;
+    } finally {
+      _flowInProgress = false;
+      _pendingFlow = null;
+    }
+  }
+  
+  Future<FlowResult> _doStartFlow(String? flowSlug) async {
     final slug = flowSlug ?? AppConfig.authFlowSlug;
-    debugPrint('🔐 Starting authentication flow: $slug');
+    debugPrint('🔐 Starting authentication flow (locked): $slug');
 
     try {
       final response = await client.get('/api/v3/flows/executor/$slug/');
@@ -142,15 +196,29 @@ class AuthRepository {
     }
   }
 
-  /// Fetch the current flow stage
-  Future<FlowResult> _fetchCurrentStage() async {
-    debugPrint('🔄 Fetching current flow stage...');
+  /// Fetch the current flow stage (with retry for chained redirects)
+  Future<FlowResult> _fetchCurrentStage({int retryCount = 0}) async {
+    debugPrint('🔄 Fetching current flow stage... (attempt ${retryCount + 1})');
+    
+    if (retryCount >= 5) {
+      debugPrint('❌ Max retries reached for fetching stage');
+      return FlowResult(success: false, error: FlowError(nonFieldErrors: 'Max retries reached'));
+    }
     
     try {
       final response = await client.get(
         '/api/v3/flows/executor/${AppConfig.authFlowSlug}/',
       );
-      return _handleFlowResponse(response);
+      
+      final result = _handleFlowResponse(response);
+      
+      // If we get another "continue flow", retry
+      if (result.error?.nonFieldErrors == '_CONTINUE_FLOW_') {
+        await Future.delayed(const Duration(milliseconds: 100));
+        return _fetchCurrentStage(retryCount: retryCount + 1);
+      }
+      
+      return result;
     } catch (e) {
       debugPrint('❌ Fetch stage error: $e');
       return FlowResult(success: false, error: FlowError(nonFieldErrors: e.toString()));
@@ -215,6 +283,9 @@ class AuthRepository {
   }
 
   FlowResult _processJsonResponse(Map<String, dynamic> data) {
+    debugPrint('📦 Processing JSON response: ${data.keys.toList()}');
+    debugPrint('📦 Component field: ${data['component']}');
+    
     if (data.containsKey('response_errors')) {
       final errors = data['response_errors'] as Map<String, dynamic>?;
       if (errors != null && errors.isNotEmpty) {
@@ -227,6 +298,7 @@ class AuthRepository {
     }
 
     final challenge = FlowChallenge.fromJson(data);
+    debugPrint('📦 Parsed challenge type: ${challenge.component.value}');
 
     if (challenge is RedirectChallenge) {
       debugPrint('✅ Flow completed successfully!');
@@ -278,7 +350,16 @@ class AuthRepository {
   }
 
   Future<void> clearTokens() async {
-    debugPrint('🚪 Clearing tokens...');
+    debugPrint('🚪 Clearing tokens and session...');
     await storage.deleteAll();
+    _flowInProgress = false;
+    _pendingFlow = null;
+    
+    // Try to cancel any active flow
+    try {
+      await client.get('/flows/-/cancel/');
+    } catch (e) {
+      debugPrint('⚠️ Cancel endpoint failed: $e');
+    }
   }
 }
