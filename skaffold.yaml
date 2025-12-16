@@ -56,6 +56,7 @@ manifests:
     - k8s/deployment.yaml
     - k8s/service.yaml
     - k8s/mcp/basic-tools.yaml
+    - k8s/tts-deployment.yaml
 
 # -----------------------------------------------------------------------------
 # Port Forwarding
@@ -73,6 +74,12 @@ portForward:
     namespace: default
     port: 8000
     localPort: 8001
+
+  - resourceType: service
+    resourceName: aura-tts-svc
+    namespace: default
+    port: 5002
+    localPort: 5002
 
 # -----------------------------------------------------------------------------
 # Development Profiles

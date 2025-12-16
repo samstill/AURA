@@ -70,6 +70,12 @@ else
     exit 1
 fi
 
+# TTS Configuration (Mock mode for local dev - no GPU required)
+export TTS_MOCK="true"
+export TTS_URL="http://localhost:5002/api/tts"  # Not used when TTS_MOCK=true
+echo -e "       TTS: ${GREEN}Mock Mode${NC} (no GPU required)"
+
+
 # Kill existing processes
 echo -e "${YELLOW}[3/6]${NC} Cleaning up old processes..."
 pkill -f "uvicorn main:app" 2>/dev/null || true

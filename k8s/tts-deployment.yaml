@@ -1,0 +1,98 @@
+# =============================================================================
+# Project Aura - TTS Service Kubernetes Deployment
+# =============================================================================
+# AI4Bharat Text-to-Speech service deployment.
+# Requires GPU node for production; runs in mock mode without GPU.
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aura-tts
+  labels:
+    app: aura-tts
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aura-tts
+  template:
+    metadata:
+      labels:
+        app: aura-tts
+        tier: backend
+    spec:
+      containers:
+        - name: tts-server
+          # AI4Bharat IndicTTS or your custom TTS image
+          # Replace with your actual TTS container image
+          image: ai4bharat/indic-tts:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5002
+              name: http
+          
+          # -------------------------------------------------------------
+          # Resource Limits (GPU optional - adjust for your setup)
+          # -------------------------------------------------------------
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+              # Uncomment for GPU support:
+              # nvidia.com/gpu: 1
+          
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+          
+          # -------------------------------------------------------------
+          # Health Probes
+          # -------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5002
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5002
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      
+      # GPU node selector (uncomment for production)
+      # nodeSelector:
+      #   gpu: "true"
+      
+      terminationGracePeriodSeconds: 30
+
+---
+# =============================================================================
+# TTS Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: aura-tts-svc
+  labels:
+    app: aura-tts
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5002
+      targetPort: 5002
+      protocol: TCP
+      name: http
+  selector:
+    app: aura-tts

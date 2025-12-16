@@ -585,6 +585,315 @@
         .port-btn:hover:not(.active) {
             color: var(--text-primary);
         }
+
+        /* Tab Toggle */
+        .tab-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2px;
+            margin-right: 1rem;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .tab-btn.active {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: var(--text-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* Voice Panel */
+        .voice-container {
+            display: none;
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            min-height: 500px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .voice-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .voice-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .voice-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .voice-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-tertiary);
+            border-radius: 50px;
+            font-size: 0.8rem;
+        }
+
+        .voice-status.connected {
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success);
+        }
+
+        .voice-status.disconnected {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error);
+        }
+
+        .voice-status.streaming {
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--accent-light);
+        }
+
+        .voice-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .voice-visualizer {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 10px 40px var(--accent-glow);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .voice-visualizer.active {
+            animation: voicePulse 1s ease-in-out infinite;
+        }
+
+        .voice-visualizer.receiving {
+            animation: voiceReceive 0.5s ease-in-out infinite;
+            background: linear-gradient(135deg, #10b981, #34d399);
+        }
+
+        @keyframes voicePulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 10px 40px var(--accent-glow);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 15px 60px rgba(99, 102, 241, 0.5);
+            }
+        }
+
+        @keyframes voiceReceive {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.03);
+            }
+        }
+
+        .voice-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .voice-stat {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .voice-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .voice-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .voice-log {
+            width: 100%;
+            max-width: 500px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .voice-log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .voice-log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .voice-log-entry.info {
+            color: var(--text-secondary);
+        }
+
+        .voice-log-entry.success {
+            color: var(--success);
+        }
+
+        .voice-log-entry.error {
+            color: var(--error);
+        }
+
+        .voice-log-entry.audio {
+            color: var(--accent-light);
+        }
+
+        .voice-input-area {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-glass);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .voice-input {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .voice-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .voice-btn {
+            padding: 0.9rem 1.5rem;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .voice-btn.connect {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .voice-btn.disconnect {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .voice-btn.send {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .voice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .voice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .token-input-group {
+            display: flex;
+            gap: 0.5rem;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 1rem;
+        }
+
+        .token-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        .token-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -597,6 +906,10 @@
             <span>DEV MODE</span>
         </div>
         <div class="header-right">
+            <div class="tab-toggle">
+                <button class="tab-btn active" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
+                <button class="tab-btn" id="tabVoice" onclick="switchTab('voice')">🎤 Voice</button>
+            </div>
             <div class="port-toggle">
                 <button class="port-btn active" id="btnPort30000" onclick="setPort(30000)">:30000</button>
                 <button class="port-btn" id="btnPort8000" onclick="setPort(8000)">:8000</button>
@@ -658,6 +971,64 @@
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Voice Testing Panel -->
+        <div class="voice-container" id="voiceContainer">
+            <div class="voice-header">
+                <h2>🎤 Voice Pipeline Tester</h2>
+                <div class="voice-status disconnected" id="voiceStatus">
+                    <span id="voiceStatusIcon">⚪</span>
+                    <span id="voiceStatusText">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="voice-main">
+                <div class="token-input-group" id="tokenInputGroup" style="display: none;">
+                    <input type="text" class="token-input" id="voiceToken"
+                        placeholder="Paste your access token here...">
+                </div>
+
+                <div class="voice-mode-toggle" style="margin-bottom: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                        <input type="checkbox" id="voiceDevMode" checked onchange="toggleVoiceDevMode()"
+                            style="width: 18px; height: 18px; accent-color: var(--accent);">
+                        <span>🧪 Dev Mode (no auth required)</span>
+                    </label>
+                </div>
+
+                <div class="voice-visualizer" id="voiceVisualizer">🎙️</div>
+
+                <div class="voice-stats">
+                    <div class="voice-stat">
+                        <div class="voice-stat-value" id="statChunks">0</div>
+                        <div class="voice-stat-label">Audio Chunks</div>
+                    </div>
+                    <div class="voice-stat">
+                        <div class="voice-stat-value" id="statBytes">0</div>
+                        <div class="voice-stat-label">Bytes</div>
+                    </div>
+                    <div class="voice-stat">
+                        <div class="voice-stat-value" id="statTTFB">-</div>
+                        <div class="voice-stat-label">TTFB (ms)</div>
+                    </div>
+                </div>
+
+                <div class="voice-log" id="voiceLog">
+                    <div class="voice-log-entry info">📋 Ready to connect. Paste token and click Connect.</div>
+                </div>
+            </div>
+
+            <div class="voice-input-area">
+                <button class="voice-btn connect" id="voiceConnectBtn" onclick="toggleVoiceConnection()">
+                    🔌 Connect
+                </button>
+                <input type="text" class="voice-input" id="voiceInput" placeholder="Type message to send via voice..."
+                    disabled>
+                <button class="voice-btn send" id="voiceSendBtn" onclick="sendVoiceMessage()" disabled>
+                    📤 Send
                 </button>
             </div>
         </div>
@@ -775,7 +1146,7 @@
 
                     const chunk = decoder.decode(value, { stream: true });
                     fullText += chunk;
-                    
+
                     // Parse Model Tag
                     const modelMatch = fullText.match(/\|\|MODEL:(.*?)\|\|/);
                     if (modelMatch) {
@@ -842,6 +1213,222 @@
             // Check health immediately
             checkHealth();
         }
+
+        // =================================================================
+        // Voice Testing Functions
+        // =================================================================
+        let voiceSocket = null;
+        let voiceConnected = false;
+        let voiceStartTime = null;
+        let audioChunks = [];
+        let audioContext = null;
+
+        const voiceLog = document.getElementById('voiceLog');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceStatusIcon = document.getElementById('voiceStatusIcon');
+        const voiceStatusText = document.getElementById('voiceStatusText');
+        const voiceVisualizer = document.getElementById('voiceVisualizer');
+        const voiceConnectBtn = document.getElementById('voiceConnectBtn');
+        const voiceInput = document.getElementById('voiceInput');
+        const voiceSendBtn = document.getElementById('voiceSendBtn');
+        const statChunks = document.getElementById('statChunks');
+        const statBytes = document.getElementById('statBytes');
+        const statTTFB = document.getElementById('statTTFB');
+
+        function switchTab(tab) {
+            document.getElementById('tabChat').classList.toggle('active', tab === 'chat');
+            document.getElementById('tabVoice').classList.toggle('active', tab === 'voice');
+            document.querySelector('.chat-container').style.display = tab === 'chat' ? 'flex' : 'none';
+            document.getElementById('voiceContainer').classList.toggle('active', tab === 'voice');
+
+            // Update info banner
+            const endpoint = tab === 'chat' ? '/api/v1/chat/send/dev' : '/api/v1/voice/stream';
+            document.querySelector('.info-banner code:last-child').textContent = endpoint;
+        }
+
+        function logVoice(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `voice-log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            voiceLog.appendChild(entry);
+            voiceLog.scrollTop = voiceLog.scrollHeight;
+        }
+
+        function updateVoiceStatus(status, text) {
+            voiceStatus.className = `voice-status ${status}`;
+            voiceStatusIcon.textContent = status === 'connected' ? '🟢' : status === 'streaming' ? '🔵' : '⚪';
+            voiceStatusText.textContent = text;
+        }
+
+        function resetVoiceStats() {
+            statChunks.textContent = '0';
+            statBytes.textContent = '0';
+            statTTFB.textContent = '-';
+            audioChunks = [];
+        }
+
+        function toggleVoiceDevMode() {
+            const devMode = document.getElementById('voiceDevMode').checked;
+            const tokenGroup = document.getElementById('tokenInputGroup');
+            tokenGroup.style.display = devMode ? 'none' : 'flex';
+        }
+
+        function toggleVoiceConnection() {
+            if (voiceConnected) {
+                disconnectVoice();
+            } else {
+                connectVoice();
+            }
+        }
+
+        function connectVoice() {
+            const devMode = document.getElementById('voiceDevMode').checked;
+            let wsUrl;
+
+            if (devMode) {
+                // Dev mode - no authentication required
+                wsUrl = `ws://localhost:${currentPort}/api/v1/voice/stream/dev`;
+                logVoice('🧪 Connecting in DEV mode (no auth)...', 'info');
+            } else {
+                // Authenticated mode
+                const token = document.getElementById('voiceToken').value.trim();
+                if (!token) {
+                    logVoice('❌ Please enter an access token first!', 'error');
+                    return;
+                }
+                wsUrl = `ws://localhost:${currentPort}/api/v1/voice/stream?token=${encodeURIComponent(token)}`;
+                logVoice(`Connecting to ${wsUrl.split('?')[0]}...`, 'info');
+            }
+
+            updateVoiceStatus('disconnected', 'Connecting...');
+
+            try {
+                voiceSocket = new WebSocket(wsUrl);
+
+                voiceSocket.onopen = () => {
+                    logVoice('✅ WebSocket connected!', 'success');
+                };
+
+                voiceSocket.onmessage = async (event) => {
+                    if (event.data instanceof Blob) {
+                        // Audio chunk received
+                        const bytes = event.data.size;
+                        audioChunks.push(event.data);
+
+                        const totalChunks = audioChunks.length;
+                        const totalBytes = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+
+                        statChunks.textContent = totalChunks;
+                        statBytes.textContent = formatBytes(totalBytes);
+
+                        if (totalChunks === 1 && voiceStartTime) {
+                            const ttfb = Date.now() - voiceStartTime;
+                            statTTFB.textContent = ttfb;
+                            logVoice(`⚡ TTFB: ${ttfb}ms`, 'success');
+                        }
+
+                        logVoice(`🎵 Audio chunk #${totalChunks}: ${bytes} bytes`, 'audio');
+                        voiceVisualizer.classList.add('receiving');
+
+                        // Try to play the audio
+                        await playAudioChunk(event.data);
+
+                    } else {
+                        // JSON message
+                        const data = JSON.parse(event.data);
+
+                        if (data.type === 'authenticated') {
+                            voiceConnected = true;
+                            updateVoiceStatus('connected', 'Connected');
+                            voiceConnectBtn.textContent = '🔌 Disconnect';
+                            voiceConnectBtn.className = 'voice-btn disconnect';
+                            voiceInput.disabled = false;
+                            voiceSendBtn.disabled = false;
+                            logVoice(`👤 Authenticated as: ${data.user?.name || 'Unknown'}`, 'success');
+                        } else if (data.status === 'turn_complete') {
+                            voiceVisualizer.classList.remove('active', 'receiving');
+                            updateVoiceStatus('connected', 'Ready');
+                            logVoice('✅ Turn complete!', 'success');
+                        } else if (data.type === 'error') {
+                            logVoice(`❌ Error: ${data.message}`, 'error');
+                        } else {
+                            logVoice(`📨 ${JSON.stringify(data)}`, 'info');
+                        }
+                    }
+                };
+
+                voiceSocket.onerror = (error) => {
+                    logVoice('❌ WebSocket error', 'error');
+                    console.error('Voice WebSocket error:', error);
+                };
+
+                voiceSocket.onclose = (event) => {
+                    voiceConnected = false;
+                    updateVoiceStatus('disconnected', 'Disconnected');
+                    voiceConnectBtn.textContent = '🔌 Connect';
+                    voiceConnectBtn.className = 'voice-btn connect';
+                    voiceInput.disabled = true;
+                    voiceSendBtn.disabled = true;
+                    voiceVisualizer.classList.remove('active', 'receiving');
+                    logVoice(`🔌 Disconnected (code: ${event.code})`, event.code === 1000 ? 'info' : 'error');
+                };
+            } catch (e) {
+                logVoice(`❌ Connection failed: ${e.message}`, 'error');
+            }
+        }
+
+        function disconnectVoice() {
+            if (voiceSocket) {
+                voiceSocket.close();
+                voiceSocket = null;
+            }
+        }
+
+        function sendVoiceMessage() {
+            const text = voiceInput.value.trim();
+            if (!text || !voiceConnected) return;
+
+            resetVoiceStats();
+            voiceStartTime = Date.now();
+            voiceVisualizer.classList.add('active');
+            updateVoiceStatus('streaming', 'Processing...');
+
+            logVoice(`🗣️ Sending: "${text}"`, 'info');
+            voiceSocket.send(JSON.stringify({ text: text }));
+            voiceInput.value = '';
+        }
+
+        async function playAudioChunk(blob) {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Note: Mock TTS returns silent bytes, real TTS would have proper audio
+                const arrayBuffer = await blob.arrayBuffer();
+                if (arrayBuffer.byteLength > 0) {
+                    // This is a simplified approach - real implementation would need proper
+                    // audio format handling (WAV headers, sample rate, etc.)
+                    // For now, just log that we received audio
+                }
+            } catch (e) {
+                console.log('Audio playback info:', e.message);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Voice input enter to send
+        voiceInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendVoiceMessage();
+            }
+        });
     </script>
 </body>
 

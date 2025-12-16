@@ -3,11 +3,12 @@ Voice Router
 ============
 
 Handles real-time voice interactions via WebSocket.
-Integrates with speech-to-text and text-to-speech services.
+Integrates with Orchestrator (Brain) and TTS (Mouth) for full voice pipeline.
 
 Authentication is required for all endpoints.
 """
 
+import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
 from pydantic import BaseModel
@@ -15,6 +16,8 @@ from typing import Optional
 
 from dependencies.auth_dependencies import CurrentUser
 from services.authentik_service import authentik_service
+from services.orchestrator_service import orchestrator_service
+from services.tts_service import tts_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -86,22 +89,20 @@ async def voice_stream(
     token: Optional[str] = Query(None),
 ):
     """
-    WebSocket endpoint for real-time voice streaming.
+    Real-time Voice Pipeline WebSocket.
     
     Authentication: Pass access token as query parameter `?token=<access_token>`
     
     Protocol:
-    1. Client connects with token: ws://host/api/v1/voice/stream?token=xxx
-    2. Server validates token and accepts connection
-    3. Client sends audio chunks (binary)
-    4. Server transcribes and responds with text (JSON)
-    5. Server can optionally send TTS audio back (binary)
+    1. Client -> {"text": "What is my schedule?"}
+    2. Server -> Binary Audio Chunk ...
+    3. Server -> Binary Audio Chunk ...
+    4. Server -> {"status": "turn_complete"}
     
     Message Types (JSON):
     - {"type": "authenticated", "user": {...}}
-    - {"type": "transcript", "text": "...", "is_final": true}
-    - {"type": "response", "text": "...", "audio_url": "..."}
-    - {"type": "error", "message": "..."}
+    - {"status": "turn_complete"} - End of response turn
+    - {"type": "error", "message": "..."} - Error occurred
     """
     # Validate token before accepting connection
     if not token:
@@ -115,7 +116,8 @@ async def voice_stream(
         return
     
     await websocket.accept()
-    logger.info(f"Voice WebSocket connected for user: {user_info.get('sub', 'unknown')}")
+    user_id = user_info.get('sub', 'unknown')
+    logger.info(f"🎤 Voice WebSocket connected for user: {user_id}")
     
     try:
         # Send authentication confirmation
@@ -126,42 +128,149 @@ async def voice_stream(
                 "name": user_info.get("name"),
                 "email": user_info.get("email"),
             },
-            "message": "Voice stream connected. Feature not yet fully implemented."
+            "message": "Voice stream connected. Send {\"text\": \"...\"} to start."
         })
         
         while True:
-            # Receive audio data
-            data = await websocket.receive()
+            # 1. Wait for user input (Text from Client STT)
+            data = await websocket.receive_json()
+            user_text = data.get("text")
             
-            if "bytes" in data:
-                # Audio chunk received
-                audio_chunk = data["bytes"]
-                # TODO: Process audio with Deepgram/Whisper
+            if not user_text:
                 await websocket.send_json({
-                    "type": "info",
-                    "message": f"Received {len(audio_chunk)} bytes. Processing not implemented."
+                    "type": "error",
+                    "message": "Missing 'text' field in request"
                 })
-            elif "text" in data:
-                # Text command received
-                text = data["text"]
-                if text == "ping":
-                    await websocket.send_json({"type": "pong"})
-                else:
-                    await websocket.send_json({
-                        "type": "echo",
-                        "text": text,
-                        "user": user_info.get("name")
-                    })
+                continue
                 
+            logger.info(f"🎤 Heard from {user_id}: {user_text[:50]}...")
+
+            # 2. Ignite the Brain (Get Text Stream)
+            # This triggers the "Speculative Parallel Loop" (Fast Filler + Smart Answer)
+            brain_stream = orchestrator_service.stream_parallel_response(
+                user_text, 
+                user_id
+            )
+
+            # 3. Ignite the Mouth (Convert to Audio Stream)
+            audio_stream = tts_service.stream_audio(brain_stream)
+
+            # 4. Stream audio bytes to client
+            chunk_count = 0
+            async for audio_chunk in audio_stream:
+                if audio_chunk:
+                    await websocket.send_bytes(audio_chunk)
+                    chunk_count += 1
+            
+            logger.info(f"🔊 Sent {chunk_count} audio chunks to {user_id}")
+            
+            # 5. Signal end of turn (so client stops listening/waiting)
+            await websocket.send_json({"status": "turn_complete"})
+
     except WebSocketDisconnect:
-        logger.info(f"Voice WebSocket disconnected for user: {user_info.get('sub', 'unknown')}")
+        logger.info(f"🔌 Voice Client Disconnected: {user_id}")
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Invalid JSON from client: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Invalid JSON format"
+            })
+        except:
+            pass
+        await websocket.close()
     except Exception as e:
-        logger.error(f"Voice WebSocket error: {e}")
+        logger.error(f"❌ Voice Error for {user_id}: {e}")
         try:
             await websocket.send_json({
                 "type": "error",
                 "message": str(e)
             })
+        except:
+            pass
+        await websocket.close()
+
+
+# -----------------------------------------------------------------------------
+# DEV WebSocket Endpoint (No Authentication - for local testing only)
+# -----------------------------------------------------------------------------
+@router.websocket("/stream/dev")
+async def voice_stream_dev(websocket: WebSocket):
+    """
+    Development Voice Pipeline WebSocket - NO AUTHENTICATION.
+    
+    ⚠️ WARNING: For local development only! Do not expose in production.
+    
+    Protocol:
+    1. Client -> {"text": "What is my schedule?"}
+    2. Server -> Binary Audio Chunk ...
+    3. Server -> Binary Audio Chunk ...
+    4. Server -> {"status": "turn_complete"}
+    """
+    await websocket.accept()
+    user_id = "dev-user-local"
+    logger.info(f"🎤 [DEV] Voice WebSocket connected for: {user_id}")
+    
+    try:
+        # Send authentication confirmation (mock)
+        await websocket.send_json({
+            "type": "authenticated",
+            "user": {
+                "sub": user_id,
+                "name": "Dev User",
+                "email": "dev@localhost",
+            },
+            "message": "Voice stream connected (DEV MODE - no auth)."
+        })
+        
+        while True:
+            # 1. Wait for user input (Text from Client STT)
+            data = await websocket.receive_json()
+            user_text = data.get("text")
+            
+            if not user_text:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Missing 'text' field in request"
+                })
+                continue
+                
+            logger.info(f"🎤 [DEV] Heard: {user_text[:50]}...")
+
+            # 2. Ignite the Brain (Get Text Stream)
+            brain_stream = orchestrator_service.stream_parallel_response(
+                user_text, 
+                user_id
+            )
+
+            # 3. Ignite the Mouth (Convert to Audio Stream)
+            audio_stream = tts_service.stream_audio(brain_stream)
+
+            # 4. Stream audio bytes to client
+            chunk_count = 0
+            async for audio_chunk in audio_stream:
+                if audio_chunk:
+                    await websocket.send_bytes(audio_chunk)
+                    chunk_count += 1
+            
+            logger.info(f"🔊 [DEV] Sent {chunk_count} audio chunks")
+            
+            # 5. Signal end of turn
+            await websocket.send_json({"status": "turn_complete"})
+
+    except WebSocketDisconnect:
+        logger.info(f"🔌 [DEV] Voice Client Disconnected")
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ [DEV] Invalid JSON: {e}")
+        try:
+            await websocket.send_json({"type": "error", "message": "Invalid JSON format"})
+        except:
+            pass
+        await websocket.close()
+    except Exception as e:
+        logger.error(f"❌ [DEV] Voice Error: {e}")
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
         except:
             pass
         await websocket.close()
