@@ -64,7 +64,7 @@ class AgentService:
             mcp_tools, tool_clients = await self._load_mcp_tools(user_id)
         except Exception as e:
             logger.error(f"Failed to load tools: {e}")
-            return f"[System Error: Failed to load tools. {e}]"
+            return "I apologize, but I cannot access my tool functions at the moment. Please contact support."
 
         try:
             # Add Dynamic Context
@@ -137,14 +137,13 @@ class AgentService:
                 logger.info(f"   Result: {result_text[:100]}...")
 
                 # Send Result back to Model
-                # We need to construct a FunctionResponse
                 response = await chat.send_message_async(
-                    genai.prototypes.Part(
-                        function_response=genai.prototypes.FunctionResponse(
-                            name=fn_name,
-                            response={"result": result_text}
-                        )
-                    )
+                    {
+                        "function_response": {
+                            "name": fn_name,
+                            "response": {"result": result_text}
+                        }
+                    }
                 )
 
             return response.text
@@ -169,7 +168,7 @@ class AgentService:
         # In a real app, we should parallelize this
         for config in user_tools_config:
             try:
-                client = RemoteMCPClient(config["endpoint"], config["config"])
+                client = RemoteMCPClient(config["mcp_endpoint"], config.get("config", {}))
                 
                 # Discovery
                 mcp_list = await client.list_tools()
@@ -188,7 +187,7 @@ class AgentService:
                     client_map[tool["name"]] = client
                     
             except Exception as e:
-                logger.error(f"Failed to load tools from {config['endpoint']}: {e}")
+                logger.error(f"Failed to load tools from {config.get('mcp_endpoint', 'unknown')}: {e}")
                 # Continue without this tool
                 
         return gemini_defs, client_map
@@ -279,7 +278,9 @@ class AgentService:
                 last_error = e
                 continue
         
-        return f"[Agent Error: All fallbacks failed. Last error: {str(last_error)}]"
+        # If we get here, all fallbacks failed
+        logger.error(f"❌ All agents failed. Last error: {last_error}")
+        return "I apologize, but I'm having trouble accessing my tools right now. Please try again in a moment."
 
     def _get_fallback_clients(self):
         """Yield available fallback providers in priority order"""

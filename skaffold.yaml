@@ -26,9 +26,16 @@ build:
       context: .
       docker:
         dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: "src/**/*.py"
+            dest: /app
+            strip: src/
 
-      # File Sync: Copy changed files directly to running container
-      # This is THE MAGIC - no Docker rebuild needed for .py changes
+    - image: aura-mcp
+      context: .
+      docker:
+        dockerfile: Dockerfile
       sync:
         manual:
           - src: "src/**/*.py"
@@ -42,11 +49,13 @@ deploy:
   kubectl: {}
   # Note: k8s/auth is NOT managed by Skaffold - deploy separately for persistence
 
-# Manifests for aura-backend only
+# Manifests for aura
 manifests:
   rawYaml:
+    - k8s/secrets.yaml
     - k8s/deployment.yaml
     - k8s/service.yaml
+    - k8s/mcp/basic-tools.yaml
 
 # -----------------------------------------------------------------------------
 # Port Forwarding
@@ -58,6 +67,12 @@ portForward:
     namespace: default
     port: 8000
     localPort: 30000
+
+  - resourceType: service
+    resourceName: mcp-basic-svc
+    namespace: default
+    port: 8000
+    localPort: 8001
 
 # -----------------------------------------------------------------------------
 # Development Profiles

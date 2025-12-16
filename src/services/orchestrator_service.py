@@ -22,9 +22,8 @@ logger = logging.getLogger(__name__)
 AURA_SYSTEM_PROMPT = """You are Aura, the world's fastest AI secretary.
 You are witty, efficient, and always helpful.
 Keep responses concise and actionable.
-NOTICE: You are currently traversing a DEMO/TEST environment. 
-Your tools (Calendar, Email) are SIMULATED. 
-Always clarify to the user that data is mock/demo data when using tools."""
+If a tool fails or is unauthorized, report the error truthfully.
+Do NOT fabricate or simulate data."""
 
 AURA_FILLER_PROMPT = """You are Aura. The user asked a complex question that requires 
 you to use tools (like checking calendars, searching the web, etc.).
@@ -86,7 +85,7 @@ class OrchestratorService:
             if "[Fallback:" in smart_result or "[System Error:" in smart_result or "[Agent Error:" in smart_result:
                  pass 
             else:
-                 yield f"||MODEL:{self.llm_service.gemini_smart_model}||"
+                 yield f"||MODEL:{settings.gemini_smart_model}||"
             
             # 4. Third Fast Model: Smooth Transition
             transition_prompt = f"""

@@ -3,22 +3,27 @@ Tool Manager
 ============
 
 Manages the retrieval of tools for a specific user.
+All tools are DB-managed via the Admin Console. No hardcoding.
 """
 
+import logging
 from typing import List, Dict
 from .database_service import database_service
 
+logger = logging.getLogger(__name__)
+
+
 class ToolManager:
     """
-    Handles the hydration of tools by merging the Registry (DB)
-    with User Secrets.
+    Handles the hydration of tools by querying the registry (DB).
+    No hardcoded tools. Everything is managed via Admin Console.
     """
     def __init__(self):
         self.db = database_service
 
     async def get_active_tools_for_user(self, user_id: str) -> List[Dict]:
         """
-        Returns a list of active tools for the user.
+        Returns a list of active tools for the user from the database.
         
         Returns:
             List of dicts containing:
@@ -27,20 +32,21 @@ class ToolManager:
             - config: User configuration (secrets)
             - auth_type: Authentication strategy
         """
-        # Fetch from DB
-        rows = await self.db.get_active_tools_for_user(user_id)
-        
-        # Map to expected structure
-        tools = []
-        for row in rows:
-            tools.append({
-                "name": row["name"],
-                "endpoint": row["mcp_endpoint"],
-                "config": row["config"] or {}, # Ensure dict
-                "auth_type": row["auth_type"]
-            })
+        try:
+            # Get tools that are globally enabled OR enabled for this user
+            tools = await self.db.get_active_tools_for_user(user_id)
             
-        return tools
+            if not tools:
+                logger.warning(f"No tools found for user {user_id}. Register tools via Admin Console.")
+                return []
+            
+            logger.info(f"Loaded {len(tools)} active tools for user {user_id}")
+            return tools
+            
+        except Exception as e:
+            logger.error(f"Failed to load tools from DB: {e}")
+            return []
+
 
 # Singleton instance
 tool_manager = ToolManager()

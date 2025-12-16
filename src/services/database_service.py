@@ -9,6 +9,7 @@ Uses asyncpg for async database access.
 import os
 from typing import Optional
 import asyncpg
+from config import settings
 
 
 class DatabaseService:
@@ -21,7 +22,7 @@ class DatabaseService:
     
     def __init__(self):
         self.pool: Optional[asyncpg.Pool] = None
-        self.database_url = os.getenv("DATABASE_URL")
+        self.database_url = settings.database_url
     
     async def connect(self):
         """Initialize the connection pool."""
@@ -174,6 +175,24 @@ class DatabaseService:
                 user_id, tool_id, enabled, config
             )
             return True
+
+    async def delete_tool(self, tool_id: str) -> bool:
+        """Soft delete a tool (set is_active = FALSE)."""
+        if not self.pool:
+            raise RuntimeError("Database not connected")
+
+        async with self.pool.acquire() as conn:
+            # Check if tool exists
+            result = await conn.execute(
+                """
+                UPDATE tools 
+                SET is_active = FALSE 
+                WHERE id = $1
+                """,
+                tool_id
+            )
+            # result string format: "UPDATE <count>"
+            return result != "UPDATE 0"
 
 
 # Singleton instance

@@ -95,8 +95,8 @@ class Settings(BaseSettings):
     # Google Gemini Configuration
     # -------------------------------------------------------------------------
     google_api_key: Optional[str] = None
-    gemini_fast_model: str = "gemini-2.5-flash"
-    gemini_smart_model: str = "gemini-3-pro-preview"
+    gemini_fast_model: str = "models/gemini-2.5-flash"
+    gemini_smart_model: str = "models/gemini-2.5-flash"
     
     # -------------------------------------------------------------------------
     # Multi-Provider Configuration (Groq & OpenRouter)
@@ -107,7 +107,13 @@ class Settings(BaseSettings):
     
     openrouter_api_key: Optional[str] = None
     openrouter_fast_model: str = "meta-llama/llama-3-8b-instruct:free"
-    openrouter_smart_model: str = "tngtech/deepseek-r1t-chimera:free"
+    openrouter_smart_model: str = "deepseek/deepseek-r1"
+    
+    # -------------------------------------------------------------------------
+    # Integrations (OAuth credentials)
+    # -------------------------------------------------------------------------
+    github_client_id: Optional[str] = "Ov23li9L5k6tqPjRk70h"
+    github_client_secret: Optional[str] = None
     
     class Config:
         env_file = "../.env"

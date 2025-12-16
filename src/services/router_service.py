@@ -41,6 +41,10 @@ class RouterService:
             r"\b(calendar|email|web search|flight|hotel|restaurant)\b",
             # Time-based requests often need tools
             r"\b(tomorrow|next week|this weekend|on monday|at \d+)\b.*\b(schedule|book|plan|meeting)\b",
+            # Information retrieval
+            r"\b(github|repo|repository|commit|pr|pull request|issue|branch)\b",
+            r"\b(time|date|clock|timezone|weather|forecast)\b",
+            r"\b(news|stock|price|exchange rate)\b",
         ]
         
         # Patterns that indicate simple chat (reflex)
