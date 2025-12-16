@@ -70,11 +70,20 @@ else
     exit 1
 fi
 
-# TTS Configuration (Mock mode for local dev - no GPU required)
-export TTS_MOCK="true"
-export TTS_URL="http://localhost:5002/api/tts"  # Not used when TTS_MOCK=true
-echo -e "       TTS: ${GREEN}Mock Mode${NC} (no GPU required)"
+# Load .env file if it exists
+if [ -f ".env" ]; then
+    set -a  # Export all variables
+    source .env
+    set +a
+fi
 
+# TTS Configuration (ElevenLabs API)
+if [ -n "$ELEVENLABS_API_KEY" ]; then
+    echo -e "       TTS: ${GREEN}ElevenLabs API${NC}"
+else
+    export TTS_MOCK="true"
+    echo -e "       TTS: ${YELLOW}Mock Mode${NC} (set ELEVENLABS_API_KEY for real audio)"
+fi
 
 # Kill existing processes
 echo -e "${YELLOW}[3/6]${NC} Cleaning up old processes..."

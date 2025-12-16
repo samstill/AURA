@@ -1399,22 +1399,46 @@
             voiceInput.value = '';
         }
 
-        async function playAudioChunk(blob) {
-            try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
+        // Audio playback queue
+        let audioQueue = [];
+        let isPlaying = false;
 
-                // Note: Mock TTS returns silent bytes, real TTS would have proper audio
-                const arrayBuffer = await blob.arrayBuffer();
-                if (arrayBuffer.byteLength > 0) {
-                    // This is a simplified approach - real implementation would need proper
-                    // audio format handling (WAV headers, sample rate, etc.)
-                    // For now, just log that we received audio
-                }
-            } catch (e) {
-                console.log('Audio playback info:', e.message);
+        async function playAudioChunk(blob) {
+            // Add to queue and start playing if not already
+            audioQueue.push(blob);
+            if (!isPlaying) {
+                playNextInQueue();
             }
+        }
+
+        function playNextInQueue() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                return;
+            }
+
+            isPlaying = true;
+            const blob = audioQueue.shift();
+
+            // Create blob URL and play with Audio element
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                playNextInQueue();
+            };
+
+            audio.onerror = (e) => {
+                console.error('Audio playback error:', e);
+                URL.revokeObjectURL(audioUrl);
+                playNextInQueue();
+            };
+
+            audio.play().catch(e => {
+                console.error('Audio play failed:', e);
+                playNextInQueue();
+            });
         }
 
         function formatBytes(bytes) {

@@ -115,6 +115,14 @@ class Settings(BaseSettings):
     github_client_id: Optional[str] = "Ov23li9L5k6tqPjRk70h"
     github_client_secret: Optional[str] = None
     
+    # -------------------------------------------------------------------------
+    # TTS (ElevenLabs)
+    # -------------------------------------------------------------------------
+    elevenlabs_api_key: Optional[str] = None
+    elevenlabs_voice_id: Optional[str] = None
+    elevenlabs_model: str = "eleven_turbo_v2_5"
+    tts_mock: bool = False
+    
     class Config:
         env_file = "../.env"
         env_file_encoding = "utf-8"

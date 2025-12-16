@@ -145,9 +145,8 @@ async def voice_stream(
                 
             logger.info(f"🎤 Heard from {user_id}: {user_text[:50]}...")
 
-            # 2. Ignite the Brain (Get Text Stream)
-            # This triggers the "Speculative Parallel Loop" (Fast Filler + Smart Answer)
-            brain_stream = orchestrator_service.stream_parallel_response(
+            # 2. Ignite the Brain (Get Text Stream with routing)
+            brain_stream = orchestrator_service.stream_voice_response(
                 user_text, 
                 user_id
             )
@@ -208,8 +207,9 @@ async def voice_stream_dev(websocket: WebSocket):
     4. Server -> {"status": "turn_complete"}
     """
     await websocket.accept()
-    user_id = "dev-user-local"
-    logger.info(f"🎤 [DEV] Voice WebSocket connected for: {user_id}")
+    # Use a valid UUID for dev user to avoid DB query errors
+    user_id = "00000000-0000-0000-0000-000000000000"
+    logger.info(f"🎤 [DEV] Voice WebSocket connected")
     
     try:
         # Send authentication confirmation (mock)
@@ -237,8 +237,8 @@ async def voice_stream_dev(websocket: WebSocket):
                 
             logger.info(f"🎤 [DEV] Heard: {user_text[:50]}...")
 
-            # 2. Ignite the Brain (Get Text Stream)
-            brain_stream = orchestrator_service.stream_parallel_response(
+            # 2. Ignite the Brain (Get Text Stream with routing)
+            brain_stream = orchestrator_service.stream_voice_response(
                 user_text, 
                 user_id
             )

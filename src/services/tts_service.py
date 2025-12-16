@@ -2,38 +2,56 @@
 TTS Service (Text-to-Speech)
 ============================
 
-Manages connection to the AI4Bharat TTS container for real-time audio synthesis.
+Uses Microsoft Edge TTS - completely FREE, no API key needed!
 Implements sentence buffering for natural, non-robotic speech output.
 """
 
 import os
-import aiohttp
+import io
 import logging
+import edge_tts
 from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
+# Popular Edge TTS voices (all free!)
+EDGE_VOICES = {
+    # English - US
+    "jenny": "en-US-JennyNeural",        # Female, friendly
+    "aria": "en-US-AriaNeural",          # Female, professional
+    "guy": "en-US-GuyNeural",            # Male, casual
+    "davis": "en-US-DavisNeural",        # Male, calm
+    # English - UK
+    "sonia": "en-GB-SoniaNeural",        # Female, British
+    "ryan": "en-GB-RyanNeural",          # Male, British
+    # English - India
+    "neerja": "en-IN-NeerjaNeural",      # Female, Indian
+    "prabhat": "en-IN-PrabhatNeural",    # Male, Indian
+    # Hindi
+    "swara": "hi-IN-SwaraNeural",        # Female, Hindi
+    "madhur": "hi-IN-MadhurNeural",      # Male, Hindi
+}
+
 
 class TTSService:
     """
-    Text-to-Speech service using AI4Bharat / Indic-Parler.
+    Text-to-Speech service using Microsoft Edge TTS.
     
     Features:
+    - Completely FREE - no API key needed!
+    - High-quality neural voices
     - Sentence buffering for natural speech
-    - Mock mode for testing without GPU
-    - Async streaming support
+    - Multiple language support
     """
     
     def __init__(self):
-        # Internal K8s DNS or Localhost URL
-        self.tts_url = os.getenv("TTS_URL", "http://localhost:5002/api/tts")
-        # If True, yield silent bytes instead of calling the heavy GPU model
-        self.use_mock = os.getenv("TTS_MOCK", "True").lower() == "true"
+        self.voice = os.getenv("TTS_VOICE", EDGE_VOICES["aria"])
+        self.use_mock = os.getenv("TTS_MOCK", "false").lower() == "true"
         
         if self.use_mock:
             logger.info("🔇 TTSService initialized in MOCK mode")
         else:
-            logger.info(f"🔊 TTSService initialized with URL: {self.tts_url}")
+            logger.info(f"🔊 TTSService initialized with Edge TTS (voice: {self.voice})")
 
     async def stream_audio(
         self, 
@@ -47,78 +65,65 @@ class TTSService:
             text_stream: Async generator yielding text chunks
             
         Yields:
-            Audio bytes for each synthesized sentence/chunk
+            Audio bytes (MP3 format) for each synthesized sentence/chunk
         """
         buffer = ""
         # Punctuation that marks a "speakable chunk"
-        sentence_endings = {".", "!", "?", "\n", ":", ";"}
+        sentence_endings = {".", "!", "?", "\n"}
 
         async for chunk in text_stream:
             buffer += chunk
             
             # Heuristic: Speak if we hit punctuation OR buffer gets too long
-            if any(end in buffer for end in sentence_endings) or len(buffer) > 80:
-                audio = await self._synthesize(buffer)
+            if any(end in buffer for end in sentence_endings) or len(buffer) > 150:
+                audio = await self._synthesize(buffer.strip())
                 if audio:
                     yield audio
                 buffer = ""
 
         # Flush whatever is left at the end
-        if buffer:
-            audio = await self._synthesize(buffer)
+        if buffer.strip():
+            audio = await self._synthesize(buffer.strip())
             if audio:
                 yield audio
 
     async def _synthesize(self, text: str) -> bytes:
         """
-        Calls the AI4Bharat Container to synthesize speech.
+        Uses Edge TTS to synthesize speech.
         
         Args:
             text: Text to convert to speech
             
         Returns:
-            Audio bytes (WAV/PCM format)
+            Audio bytes (MP3 format)
         """
         if not text.strip():
             return b''
 
         if self.use_mock:
-            # Return 1 second of silence (for testing logic without GPU)
-            # 16-bit PCM at 16kHz = 32000 bytes per second
             logger.debug(f"🔇 Mock TTS: '{text[:30]}...'")
             return b'\x00' * 1024
 
         try:
-            # AI4Bharat / Indic-Parler Payload
-            payload = {
-                "input": text,
-                "gender": "female",
-                "alpha": 1.0,  # Speed multiplier
-                "lang": "en"   # or 'hi' for Hindi
-            }
+            # Create TTS communicate object
+            communicate = edge_tts.Communicate(text, self.voice)
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.tts_url, 
-                    json=payload, 
-                    timeout=aiohttp.ClientTimeout(total=5.0)
-                ) as resp:
-                    if resp.status == 200:
-                        audio_data = await resp.read()
-                        logger.debug(f"🔊 TTS: {len(audio_data)} bytes for '{text[:30]}...'")
-                        return audio_data
-                    else:
-                        error_text = await resp.text()
-                        logger.error(f"TTS Error {resp.status}: {error_text}")
-                        return b''
+            # Collect audio chunks
+            audio_data = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data.write(chunk["data"])
+            
+            result = audio_data.getvalue()
+            if result:
+                logger.info(f"🔊 Edge TTS: {len(result)} bytes for '{text[:30]}...'")
+            return result
                         
-        except aiohttp.ClientError as e:
-            logger.error(f"TTS Connection Failed: {e}")
-            return b''
         except Exception as e:
-            logger.error(f"TTS Unexpected Error: {e}")
+            logger.error(f"Edge TTS Error: {e}")
             return b''
 
 
 # Singleton instance
 tts_service = TTSService()
+
