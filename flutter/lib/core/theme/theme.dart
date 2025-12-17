@@ -1,4 +1,6 @@
 /// Core theme exports
 library;
 
-export 'aura_theme.dart';
+// Re-export design system for backward compatibility
+export '../design_system/design_system.dart';
+

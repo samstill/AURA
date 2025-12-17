@@ -1,11 +1,14 @@
 /// Project Aura - Login Screen
 /// ============================
 /// Native in-app authentication using Authentik Flows API.
+/// Implements the "Tactical Implementation of Desire" design philosophy.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../config/app_config.dart';
+import '../../../design_system/design_system.dart';
 import '../../data/data.dart';
 import '../../domain/domain.dart';
 import '../controllers/controllers.dart';
@@ -21,7 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _totpController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -32,15 +35,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Defer auth flow start until after widget tree is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Don't start flow if already authenticated (router will redirect)
       final isAuthenticated = ref.read(isAuthenticatedProvider);
       if (isAuthenticated) {
         debugPrint('⏭️ Already authenticated, skipping flow start');
         return;
       }
-      
+
       if (!_flowStarted) {
         _flowStarted = true;
         _startAuthFlow();
@@ -57,25 +58,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _startAuthFlow({int retryCount = 0}) async {
-    // Guard against multiple calls
     if (_isLoading && retryCount == 0) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    final result = await ref.read(authControllerProvider.notifier).startAuthFlow();
+    final result =
+        await ref.read(authControllerProvider.notifier).startAuthFlow();
 
     if (!mounted) return;
 
-    // If we get a flow error on the first try, it might be a race condition after logout
-    // Wait a bit and retry once
-    if (result.challenge?.component == FlowComponentType.flowError && retryCount < 2) {
+    if (result.challenge?.component == FlowComponentType.flowError &&
+        retryCount < 2) {
       debugPrint('⚠️ Got flow error on attempt ${retryCount + 1}, retrying...');
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
-        // Reset the flow state and try again
         await ref.read(authControllerProvider.notifier).restartAuthFlow();
         await _startAuthFlow(retryCount: retryCount + 1);
       }
@@ -92,20 +91,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  /// Restart the auth flow - used when user wants to change account
   Future<void> _restartAuthFlow() async {
-    // Clear form fields
     _emailController.clear();
     _passwordController.clear();
     _totpController.clear();
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _currentChallenge = null;
     });
 
-    final result = await ref.read(authControllerProvider.notifier).restartAuthFlow();
+    final result =
+        await ref.read(authControllerProvider.notifier).restartAuthFlow();
 
     if (!mounted) return;
 
@@ -114,7 +112,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (result.success) {
         _currentChallenge = result.challenge;
       } else {
-        _errorMessage = result.error?.displayError ?? 'Failed to restart login';
+        _errorMessage =
+            result.error?.displayError ?? 'Failed to restart login';
       }
     });
   }
@@ -131,7 +130,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
 
-    final result = await ref.read(authControllerProvider.notifier).submitIdentification(email);
+    final result =
+        await ref.read(authControllerProvider.notifier).submitIdentification(email);
 
     if (!mounted) return;
     _handleFlowResult(result);
@@ -149,7 +149,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
 
-    final result = await ref.read(authControllerProvider.notifier).submitPassword(password);
+    final result =
+        await ref.read(authControllerProvider.notifier).submitPassword(password);
 
     if (!mounted) return;
     _handleFlowResult(result);
@@ -167,7 +168,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
 
-    final result = await ref.read(authControllerProvider.notifier).submitTotp(code);
+    final result =
+        await ref.read(authControllerProvider.notifier).submitTotp(code);
 
     if (!mounted) return;
     _handleFlowResult(result);
@@ -176,36 +178,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleFlowResult(FlowResult result) async {
     setState(() {
       _isLoading = false;
-      
-      if (result.error != null && result.error!.nonFieldErrors != '_CONTINUE_FLOW_') {
+
+      if (result.error != null &&
+          result.error!.nonFieldErrors != '_CONTINUE_FLOW_') {
         _errorMessage = result.error!.displayError;
       }
-      
+
       if (result.challenge != null) {
         _currentChallenge = result.challenge;
-        
+
         if (result.challenge!.isSuccess) {
           debugPrint('🎉 Auth success - navigating to home...');
           _isLoading = true;
         }
       }
     });
-    
-    // On successful authentication, just show loading state
-    // The AuthController already notified AuthChangeNotifier
-    // which will trigger the router's refreshListenable to redirect
+
     if (result.challenge?.isSuccess == true) {
       debugPrint('🎉 Auth success - router will redirect automatically');
-      // Keep loading state - router's redirect will navigate to home
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Scaffold(
+    return AuraScaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -213,30 +209,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLogo(colorScheme),
+                // Logo with halo glow effect
+                _buildLogo().withScaleEntrance(),
                 const SizedBox(height: 32),
+
+                // Title
                 Text(
                   'Project Aura',
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ).withIce(),
                 const SizedBox(height: 8),
+
                 Text(
                   'Sign in to continue',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: context.aura.textSecondary,
+                      ),
+                ).withStaggeredEntrance(index: 1),
                 const SizedBox(height: 48),
-                _buildStageContent(theme, colorScheme),
+
+                // Form content
+                _buildStageContent().withStaggeredEntrance(index: 2),
                 const SizedBox(height: 32),
+
+                // Server info
                 Text(
                   'Authentik: ${AppConfig.host}:${AppConfig.authentikPort}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.outline,
-                    fontFamily: 'monospace',
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.aura.textSecondary.withOpacity(0.5),
+                        fontFamily: 'monospace',
+                      ),
                 ),
               ],
             ),
@@ -246,343 +250,434 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLogo(ColorScheme colorScheme) {
+  Widget _buildLogo() {
     return Container(
       width: 100,
       height: 100,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [colorScheme.primary, colorScheme.tertiary],
+        gradient: const LinearGradient(
+          colors: [AuraColors.heartbeat, AuraColors.tether],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AuraColors.heartbeat.withOpacity(0.4),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: AuraColors.halo.withOpacity(0.2),
+            blurRadius: 60,
+            spreadRadius: 10,
           ),
         ],
       ),
-      child: Icon(
-        Icons.auto_awesome,
+      child: const Icon(
+        LucideIcons.sparkles,
         size: 48,
-        color: colorScheme.onPrimary,
+        color: Colors.white,
       ),
     );
   }
 
-  Widget _buildStageContent(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildStageContent() {
     if (_isLoading && _currentChallenge == null) {
-      return const Column(
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Connecting to authentication server...'),
-        ],
+      return AuraGlass(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation(AuraColors.halo),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Connecting to authentication server...',
+              style: TextStyle(color: context.aura.textSecondary),
+            ),
+          ],
+        ),
       );
     }
 
     if (_currentChallenge == null) {
-      return _buildErrorCard(colorScheme);
+      return _buildErrorCard();
     }
 
     switch (_currentChallenge!.component) {
       case FlowComponentType.identification:
-        return _buildIdentificationStage(colorScheme);
+        return _buildIdentificationStage();
       case FlowComponentType.password:
-        return _buildPasswordStage(theme, colorScheme);
+        return _buildPasswordStage();
       case FlowComponentType.authenticatorValidate:
-        return _buildMfaStage(theme, colorScheme);
+        return _buildMfaStage();
       case FlowComponentType.accessDenied:
-        return _buildAccessDeniedStage(theme, colorScheme);
+        return _buildAccessDeniedStage();
       case FlowComponentType.flowError:
-        return _buildFlowErrorStage(theme, colorScheme);
+        return _buildFlowErrorStage();
       case FlowComponentType.redirect:
-        // Success - show loading while router navigates
-        return const Column(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Login successful! Redirecting...'),
-          ],
+        return AuraGlass(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation(AuraColors.halo),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Login successful! Redirecting...',
+                style: TextStyle(color: context.aura.textSecondary),
+              ),
+            ],
+          ),
         );
       default:
-        return _buildUnknownStage(theme);
+        return _buildUnknownStage();
     }
   }
 
-  Widget _buildIdentificationStage(ColorScheme colorScheme) {
-    return Column(
-      children: [
-        if (_errorMessage != null) ...[
-          _buildErrorMessage(colorScheme),
-          const SizedBox(height: 16),
+  Widget _buildIdentificationStage() {
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_errorMessage != null) ...[
+            _buildErrorMessage(),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            autofocus: true,
+            style: TextStyle(color: context.aura.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Email or Username',
+              hintText: 'Enter your email or username',
+              prefixIcon: AuraIcon.glass(LucideIcons.user, size: 20),
+            ),
+            onSubmitted: (_) => _submitIdentification(),
+          ),
+          const SizedBox(height: 24),
+          AuraButton.heartbeat(
+            label: 'Continue',
+            onPressed: _isLoading ? null : _submitIdentification,
+            isLoading: _isLoading,
+            fullWidth: true,
+          ),
         ],
-        TextField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Email or Username',
-            hintText: 'Enter your email or username',
-            prefixIcon: const Icon(Icons.person_outline),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onSubmitted: (_) => _submitIdentification(),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _isLoading ? null : _submitIdentification,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: _isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Continue'),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildPasswordStage(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildPasswordStage() {
     final challenge = _currentChallenge as PasswordChallenge?;
-    
-    return Column(
-      children: [
-        if (challenge?.pendingUser != null) ...[
+
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (challenge?.pendingUser != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: context.aura.bgSecondary.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.aura.glassBorder),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AuraColors.tether,
+                    child: Text(
+                      challenge!.pendingUser![0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      challenge.pendingUser!,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  AuraIconButton(
+                    icon: LucideIcons.x,
+                    onPressed: _isLoading ? null : _restartAuthFlow,
+                    tooltip: 'Sign in with different account',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+          if (_errorMessage != null) ...[
+            _buildErrorMessage(),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            autofocus: true,
+            style: TextStyle(color: context.aura.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Password',
+              hintText: 'Enter your password',
+              prefixIcon: AuraIcon.glass(LucideIcons.lock, size: 20),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff,
+                  color: context.aura.textSecondary,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            onSubmitted: (_) => _submitPassword(),
+          ),
+          const SizedBox(height: 24),
+          AuraButton.heartbeat(
+            label: 'Sign In',
+            onPressed: _isLoading ? null : _submitPassword,
+            isLoading: _isLoading,
+            fullWidth: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMfaStage() {
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          AuraIcon.halo(LucideIcons.shield, size: 64),
+          const SizedBox(height: 16),
+          Text(
+            'Two-Factor Authentication',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Enter the code from your authenticator app',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.aura.textSecondary,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          if (_errorMessage != null) ...[
+            _buildErrorMessage(),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _totpController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: 6,
+            autofocus: true,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.bold,
+                  color: context.aura.textPrimary,
+                ),
+            decoration: const InputDecoration(
+              hintText: '000000',
+              counterText: '',
+            ),
+            onSubmitted: (_) => _submitTotp(),
+          ),
+          const SizedBox(height: 24),
+          AuraButton.heartbeat(
+            label: 'Verify',
+            onPressed: _isLoading ? null : _submitTotp,
+            isLoading: _isLoading,
+            fullWidth: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccessDeniedStage() {
+    final challenge = _currentChallenge as AccessDeniedChallenge?;
+
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(LucideIcons.ban, size: 64, color: AuraColors.heartbeat),
+          const SizedBox(height: 16),
+          Text(
+            'Access Denied',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AuraColors.heartbeat,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            challenge?.errorMessage ?? 'Authentication failed',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.aura.textSecondary,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          AuraButton.ghost(
+            label: 'Try Again',
+            onPressed: _isLoading ? null : _restartAuthFlow,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlowErrorStage() {
+    final challenge = _currentChallenge as FlowErrorChallenge?;
+
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(LucideIcons.alertCircle, size: 64, color: AuraColors.heartbeat),
+          const SizedBox(height: 16),
+          Text(
+            'Authentication Error',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AuraColors.heartbeat,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            challenge?.errorMessage ??
+                'An error occurred during authentication. Please try again.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.aura.textSecondary,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          if (challenge?.requestId != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Request ID: ${challenge!.requestId}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    color: context.aura.textSecondary,
+                  ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          AuraButton.heartbeat(
+            label: 'Start Over',
+            icon: LucideIcons.refreshCw,
+            onPressed: _isLoading ? null : _restartAuthFlow,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnknownStage() {
+    debugPrint(
+        '⚠️ Unknown stage component: ${_currentChallenge?.component.value}');
+    debugPrint('⚠️ Raw data: ${_currentChallenge?.rawData}');
+
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          AuraIcon.glass(LucideIcons.helpCircle, size: 64),
+          const SizedBox(height: 16),
+          Text(
+            'Unknown Stage',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Component: ${_currentChallenge?.component.value ?? "null"}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                  color: context.aura.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 16),
+          AuraButton.ghost(
+            label: 'Restart',
+            onPressed: _isLoading ? null : _restartAuthFlow,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return AuraGlass(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: AuraColors.heartbeat.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: colorScheme.primary,
-                  child: Text(
-                    challenge!.pendingUser![0].toUpperCase(),
-                    style: TextStyle(color: colorScheme.onPrimary),
-                  ),
-                ),
+                Icon(LucideIcons.alertTriangle, color: AuraColors.heartbeat),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(challenge.pendingUser!, style: theme.textTheme.titleMedium),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _isLoading ? null : _restartAuthFlow,
-                  tooltip: 'Sign in with different account',
+                  child: Text(
+                    _errorMessage ?? 'Connection failed',
+                    style: TextStyle(color: context.aura.textPrimary),
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-        ],
-        if (_errorMessage != null) ...[
-          _buildErrorMessage(colorScheme),
-          const SizedBox(height: 16),
-        ],
-        TextField(
-          controller: _passwordController,
-          obscureText: _obscurePassword,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Password',
-            hintText: 'Enter your password',
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onSubmitted: (_) => _submitPassword(),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _isLoading ? null : _submitPassword,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: _isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Sign In'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMfaStage(ThemeData theme, ColorScheme colorScheme) {
-    return Column(
-      children: [
-        Icon(Icons.security, size: 64, color: colorScheme.primary),
-        const SizedBox(height: 16),
-        Text('Two-Factor Authentication', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 8),
-        Text(
-          'Enter the code from your authenticator app',
-          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        if (_errorMessage != null) ...[
-          _buildErrorMessage(colorScheme),
-          const SizedBox(height: 16),
-        ],
-        TextField(
-          controller: _totpController,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          maxLength: 6,
-          autofocus: true,
-          style: theme.textTheme.headlineMedium?.copyWith(letterSpacing: 8, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            hintText: '000000',
-            counterText: '',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onSubmitted: (_) => _submitTotp(),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _isLoading ? null : _submitTotp,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: _isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Verify'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAccessDeniedStage(ThemeData theme, ColorScheme colorScheme) {
-    final challenge = _currentChallenge as AccessDeniedChallenge?;
-    
-    return Column(
-      children: [
-        Icon(Icons.block, size: 64, color: colorScheme.error),
-        const SizedBox(height: 16),
-        Text('Access Denied', style: theme.textTheme.titleLarge?.copyWith(color: colorScheme.error)),
-        const SizedBox(height: 8),
-        Text(
-          challenge?.errorMessage ?? 'Authentication failed',
-          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton(onPressed: _isLoading ? null : _restartAuthFlow, child: const Text('Try Again')),
-      ],
-    );
-  }
-
-  Widget _buildFlowErrorStage(ThemeData theme, ColorScheme colorScheme) {
-    final challenge = _currentChallenge as FlowErrorChallenge?;
-    
-    return Column(
-      children: [
-        Icon(Icons.error_outline, size: 64, color: colorScheme.error),
-        const SizedBox(height: 16),
-        Text('Authentication Error', style: theme.textTheme.titleLarge?.copyWith(color: colorScheme.error)),
-        const SizedBox(height: 8),
-        Text(
-          challenge?.errorMessage ?? 'An error occurred during authentication. Please try again.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-          textAlign: TextAlign.center,
-        ),
-        if (challenge?.requestId != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Request ID: ${challenge!.requestId}',
-            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+          AuraButton.ghost(
+            label: 'Retry',
+            icon: LucideIcons.refreshCw,
+            onPressed: _isLoading ? null : _restartAuthFlow,
           ),
         ],
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: _isLoading ? null : _restartAuthFlow,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Start Over'),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildUnknownStage(ThemeData theme) {
-    // Log the unknown stage for debugging
-    debugPrint('⚠️ Unknown stage component: ${_currentChallenge?.component.value}');
-    debugPrint('⚠️ Raw data: ${_currentChallenge?.rawData}');
-    
-    return Column(
-      children: [
-        const Icon(Icons.help_outline, size: 64),
-        const SizedBox(height: 16),
-        Text('Unknown Stage', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 8),
-        Text(
-          'Component: ${_currentChallenge?.component.value ?? "null"}',
-          style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton(onPressed: _isLoading ? null : _restartAuthFlow, child: const Text('Restart')),
-      ],
-    );
-  }
-
-  Widget _buildErrorCard(ColorScheme colorScheme) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.error_outline, color: colorScheme.error),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _errorMessage ?? 'Connection failed',
-                  style: TextStyle(color: colorScheme.onErrorContainer),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton.icon(
-          onPressed: _isLoading ? null : _restartAuthFlow,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Retry'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorMessage(ColorScheme colorScheme) {
+  Widget _buildErrorMessage() {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.errorContainer,
+        color: AuraColors.heartbeat.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AuraColors.heartbeat.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: colorScheme.error, size: 20),
+          Icon(LucideIcons.alertCircle, color: AuraColors.heartbeat, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: TextStyle(color: colorScheme.onErrorContainer, fontSize: 12),
+              style: TextStyle(
+                color: context.aura.textPrimary,
+                fontSize: 12,
+              ),
             ),
           ),
         ],

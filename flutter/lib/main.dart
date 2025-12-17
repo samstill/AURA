@@ -1,16 +1,17 @@
 /// Project Aura - Main Application Entry Point
 /// ============================================
 /// Feature-first architecture with Riverpod 2.0 and GoRouter.
+/// Theme system follows the "Tactical Implementation of Desire" philosophy.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
-import 'core/theme/aura_theme.dart';
+import 'core/design_system/design_system.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   runApp(
     const ProviderScope(
       child: AuraApp(),
@@ -24,13 +25,18 @@ class AuraApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    
+    // Watch the theme mode from the provider (defaults to system)
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp.router(
       title: 'Project Aura',
       debugShowCheckedModeBanner: false,
-      theme: AuraTheme.lightTheme,
-      darkTheme: AuraTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      // The Mirage (Light Theme)
+      theme: AppTheme.light,
+      // The Void (Dark Theme)
+      darkTheme: AppTheme.dark,
+      // Controlled by themeModeProvider - defaults to system
+      themeMode: themeMode,
       routerConfig: router,
     );
   }
