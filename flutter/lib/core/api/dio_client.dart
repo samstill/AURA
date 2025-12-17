@@ -2,24 +2,36 @@
 /// ================================
 /// Centralized Dio instance with interceptors.
 
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../config/app_config.dart';
 
 part 'dio_client.g.dart';
 
-/// Provides the shared CookieJar instance
+/// Provides the persistent CookieJar instance
 @Riverpod(keepAlive: true)
-CookieJar cookieJar(CookieJarRef ref) => CookieJar();
+Future<PersistCookieJar> cookieJar(CookieJarRef ref) async {
+  final appDocDir = await getApplicationDocumentsDirectory();
+  final cookiePath = '${appDocDir.path}/.cookies/';
+  final directory = Directory(cookiePath);
+  
+  if (!await directory.exists()) {
+    await directory.create(recursive: true);
+  }
+  
+  return PersistCookieJar(storage: FileStorage(cookiePath));
+}
 
 /// Provides the configured Dio instance for API calls
 @Riverpod(keepAlive: true)
-Dio apiClient(ApiClientRef ref) {
-  final cookieJar = ref.watch(cookieJarProvider);
+Future<Dio> apiClient(ApiClientRef ref) async {
+  final cookieJar = await ref.watch(cookieJarProvider.future);
   
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.apiBaseUrl,
@@ -49,8 +61,8 @@ Dio apiClient(ApiClientRef ref) {
 
 /// Provides the configured Dio instance for Authentik API calls
 @Riverpod(keepAlive: true)
-Dio authentikClient(AuthentikClientRef ref) {
-  final cookieJar = ref.watch(cookieJarProvider);
+Future<Dio> authentikClient(AuthentikClientRef ref) async {
+  final cookieJar = await ref.watch(cookieJarProvider.future);
   
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.authentikBaseUrl,

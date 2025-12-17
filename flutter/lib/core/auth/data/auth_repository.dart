@@ -3,6 +3,7 @@
 /// Handles authentication via Authentik Flows API.
 
 import 'dart:convert';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -35,9 +36,13 @@ class FlowResult {
 
 /// Auth repository provider
 @Riverpod(keepAlive: true)
-AuthRepository authRepository(AuthRepositoryRef ref) {
+Future<AuthRepository> authRepository(AuthRepositoryRef ref) async {
+  final client = await ref.watch(authentikClientProvider.future);
+  final cookieJar = await ref.watch(cookieJarProvider.future);
+  
   return AuthRepository(
-    client: ref.watch(authentikClientProvider),
+    client: client,
+    cookieJar: cookieJar,
     storage: const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
@@ -48,17 +53,42 @@ AuthRepository authRepository(AuthRepositoryRef ref) {
 /// Repository for authentication operations
 class AuthRepository {
   final Dio client;
+  final CookieJar cookieJar;
   final FlutterSecureStorage storage;
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _expiresAtKey = 'expires_at';
 
-  AuthRepository({required this.client, required this.storage});
+  AuthRepository({
+    required this.client, 
+    required this.cookieJar,
+    required this.storage,
+  });
 
   /// Static lock to prevent multiple concurrent flow starts
   static bool _flowInProgress = false;
   static Future<FlowResult>? _pendingFlow;
+
+  /// Check if the session is valid by calling the userinfo endpoint
+  Future<bool> checkSession() async {
+    debugPrint('🔍 Verifying session with backend...');
+    try {
+      // Intentionally using the authentik client but calling the user endpoint
+      // This validates if the session cookie is valid
+      final response = await client.get('/api/v3/core/users/me/');
+      
+      if (response.statusCode == 200) {
+        debugPrint('✅ Session is valid: ${response.data['username']}');
+        return true;
+      }
+      debugPrint('⚠️ Session check failed: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Session check error: $e');
+      return false;
+    }
+  }
 
   /// Reset flow state - call before starting a new flow when user wants to restart
   Future<void> resetFlow() async {
@@ -82,6 +112,10 @@ class AuthRepository {
     _flowInProgress = false;
     _pendingFlow = null;
     await storage.deleteAll();
+    
+    // Clear cookies
+    await cookieJar.deleteAll();
+    debugPrint('🍪 Cookies cleared');
     
     // Try to cancel any active flow
     try {
@@ -351,15 +385,6 @@ class AuthRepository {
 
   Future<void> clearTokens() async {
     debugPrint('🚪 Clearing tokens and session...');
-    await storage.deleteAll();
-    _flowInProgress = false;
-    _pendingFlow = null;
-    
-    // Try to cancel any active flow
-    try {
-      await client.get('/flows/-/cancel/');
-    } catch (e) {
-      debugPrint('⚠️ Cancel endpoint failed: $e');
-    }
+    await clearSession();
   }
 }

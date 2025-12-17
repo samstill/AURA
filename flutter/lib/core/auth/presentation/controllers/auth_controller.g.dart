@@ -42,7 +42,7 @@ final currentChallengeProvider = AutoDisposeProvider<FlowChallenge?>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef CurrentChallengeRef = AutoDisposeProviderRef<FlowChallenge?>;
-String _$authControllerHash() => r'270c5ad9e17a7ffd9b7b5bd58af1740809652f55';
+String _$authControllerHash() => r'a167d8ad2d5815685152ee577a63920b2a7faa13';
 
 /// Auth state controller using AsyncNotifier
 ///

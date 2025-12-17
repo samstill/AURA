@@ -20,14 +20,22 @@ class AuthController extends _$AuthController {
   
   @override
   Future<AuthState> build() async {
-    // Check for existing tokens on startup
-    final repo = ref.read(authRepositoryProvider);
-    final token = await repo.getAccessToken();
+    // Check for existing session via backend validation
+    // The repository is now an async provider, so we await its future
+    final repo = await ref.watch(authRepositoryProvider.future);
     
-    if (token != null && !(await repo.isTokenExpired())) {
+    // Check if we have a valid session cookie
+    final isValidSession = await repo.checkSession();
+    
+    if (isValidSession) {
+      debugPrint('✅ Initial build: Authenticated session found');
+      // Ensure the router knows we are authenticated immediately
+      AuthChangeNotifier.instance.setAuthenticated(true);
       return const AuthState(status: AuthStatus.authenticated);
     }
     
+    debugPrint('⚠️ Initial build: No valid session found');
+    AuthChangeNotifier.instance.setAuthenticated(false);
     return const AuthState(status: AuthStatus.unauthenticated);
   }
 
@@ -64,7 +72,7 @@ class AuthController extends _$AuthController {
     _pendingFlow = null;
     _currentChallenge = null;
     
-    final repo = ref.read(authRepositoryProvider);
+    final repo = await ref.read(authRepositoryProvider.future);
     await repo.resetFlow();
     
     // Now start fresh
@@ -72,7 +80,7 @@ class AuthController extends _$AuthController {
   }
   
   Future<FlowResult> _doStartFlow() async {
-    final repo = ref.read(authRepositoryProvider);
+    final repo = await ref.read(authRepositoryProvider.future);
     final result = await repo.startFlow();
     
     if (result.success && result.challenge != null) {
@@ -84,7 +92,7 @@ class AuthController extends _$AuthController {
 
   /// Submit identification
   Future<FlowResult> submitIdentification(String email) async {
-    final repo = ref.read(authRepositoryProvider);
+    final repo = await ref.read(authRepositoryProvider.future);
     final result = await repo.submitIdentification(email);
     
     if (result.success && result.challenge != null) {
@@ -100,7 +108,7 @@ class AuthController extends _$AuthController {
 
   /// Submit password
   Future<FlowResult> submitPassword(String password) async {
-    final repo = ref.read(authRepositoryProvider);
+    final repo = await ref.read(authRepositoryProvider.future);
     final result = await repo.submitPassword(password);
     
     if (result.success && result.challenge != null) {
@@ -116,7 +124,7 @@ class AuthController extends _$AuthController {
 
   /// Submit TOTP
   Future<FlowResult> submitTotp(String code) async {
-    final repo = ref.read(authRepositoryProvider);
+    final repo = await ref.read(authRepositoryProvider.future);
     final result = await repo.submitTotp(code);
     
     if (result.success && result.challenge != null) {
@@ -136,19 +144,21 @@ class AuthController extends _$AuthController {
     state = const AsyncData(AuthState(status: AuthStatus.authenticated));
     
     // Notify the router's auth listener to trigger redirect
-    // Import is done dynamically to avoid circular dependency
     AuthChangeNotifier.instance.setAuthenticated(true);
   }
 
   /// Logout
   Future<void> logout() async {
-    final repo = ref.read(authRepositoryProvider);
-    await repo.clearTokens();
+    debugPrint('🚪 initiating logout...');
+    final repo = await ref.read(authRepositoryProvider.future);
+    await repo.clearSession();
+    
     _currentChallenge = null;
     state = const AsyncData(AuthState(status: AuthStatus.unauthenticated));
     
     // Notify the router's auth listener
     AuthChangeNotifier.instance.setAuthenticated(false);
+    debugPrint('✅ Logout complete');
   }
 }
 
