@@ -85,6 +85,21 @@ portForward:
 # Development Profiles
 # -----------------------------------------------------------------------------
 profiles:
+  # Colab Development Profile (auto-activates with 'skaffold dev')
+  # Uses remote Colab workers via ngrok tunnels
+  - name: colab
+    activation:
+      - command: dev
+    deploy:
+      kubectl: {}
+    manifests:
+      rawYaml:
+        - k8s/secrets.yaml
+        - k8s/deployment.yaml
+        - k8s/service.yaml
+        - k8s/mcp/basic-tools.yaml
+        # TTS runs on Colab, not locally in dev mode
+
   # Production build profile (no hot-reload, optimized image)
   - name: prod
     build:
@@ -101,3 +116,4 @@ profiles:
         - k8s/deployment.yaml
         - k8s/service.yaml
         - k8s/ingress.yaml
+        - k8s/tts-deployment.yaml

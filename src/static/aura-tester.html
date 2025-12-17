@@ -1030,6 +1030,10 @@
                 <button class="voice-btn send" id="voiceSendBtn" onclick="sendVoiceMessage()" disabled>
                     📤 Send
                 </button>
+                <button class="voice-btn" style="background: var(--bg-tertiary); border: 1px solid var(--border);"
+                    onclick="downloadAudio()" title="Download audio">
+                    💾
+                </button>
             </div>
         </div>
     </main>
@@ -1266,6 +1270,7 @@
             statBytes.textContent = '0';
             statTTFB.textContent = '-';
             audioChunks = [];
+            resetAudioState();  // Reset format detection for new session
         }
 
         function toggleVoiceDevMode() {
@@ -1402,8 +1407,27 @@
         // Audio playback queue
         let audioQueue = [];
         let isPlaying = false;
+        let detectedFormat = null;  // Track audio format for debugging
 
         async function playAudioChunk(blob) {
+            // Detect audio format from first bytes
+            if (!detectedFormat) {
+                const header = await blob.slice(0, 4).arrayBuffer();
+                const bytes = new Uint8Array(header);
+
+                // WAV starts with "RIFF", MP3 starts with 0xFF 0xFB or ID3
+                if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+                    detectedFormat = 'audio/wav';
+                    logVoice('🎵 Detected: WAV format (XTTS)', 'success');
+                } else if (bytes[0] === 0xFF || (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33)) {
+                    detectedFormat = 'audio/mpeg';
+                    logVoice('🎵 Detected: MP3 format (Edge TTS)', 'success');
+                } else {
+                    detectedFormat = 'audio/wav';  // Default to WAV
+                    logVoice('🎵 Unknown format, trying WAV', 'info');
+                }
+            }
+
             // Add to queue and start playing if not already
             audioQueue.push(blob);
             if (!isPlaying) {
@@ -1420,8 +1444,9 @@
             isPlaying = true;
             const blob = audioQueue.shift();
 
-            // Create blob URL and play with Audio element
-            const audioUrl = URL.createObjectURL(blob);
+            // Create blob with correct MIME type
+            const typedBlob = new Blob([blob], { type: detectedFormat || 'audio/wav' });
+            const audioUrl = URL.createObjectURL(typedBlob);
             const audio = new Audio(audioUrl);
 
             audio.onended = () => {
@@ -1431,20 +1456,45 @@
 
             audio.onerror = (e) => {
                 console.error('Audio playback error:', e);
+                logVoice(`⚠️ Audio error: ${e.type}`, 'error');
                 URL.revokeObjectURL(audioUrl);
                 playNextInQueue();
             };
 
             audio.play().catch(e => {
                 console.error('Audio play failed:', e);
+                logVoice(`⚠️ Play failed: ${e.message}`, 'error');
                 playNextInQueue();
             });
+        }
+
+        // Reset format detection on new voice session
+        function resetAudioState() {
+            audioQueue = [];
+            isPlaying = false;
+            detectedFormat = null;
         }
 
         function formatBytes(bytes) {
             if (bytes < 1024) return bytes + ' B';
             if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Download collected audio for debugging
+        function downloadAudio() {
+            if (audioChunks.length === 0) {
+                logVoice('No audio to download', 'error');
+                return;
+            }
+            const blob = new Blob(audioChunks, { type: detectedFormat || 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `aura_audio_${Date.now()}.${detectedFormat === 'audio/mpeg' ? 'mp3' : 'wav'}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            logVoice('💾 Audio downloaded', 'success');
         }
 
         // Voice input enter to send

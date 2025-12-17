@@ -123,6 +123,30 @@ class Settings(BaseSettings):
     elevenlabs_model: str = "eleven_turbo_v2_5"
     tts_mock: bool = False
     
+    # -------------------------------------------------------------------------
+    # XTTS Remote Worker (Colab GPU or K8s Cluster)
+    # -------------------------------------------------------------------------
+    # Mode: DEV = Colab ngrok tunnels, PROD = K8s internal DNS
+    aura_env: str = "DEV"
+    
+    # Remote worker URLs (populated via env vars in DEV mode)
+    tts_worker_url: Optional[str] = None      # XTTS-v2 synthesis worker
+    voice_worker_url: Optional[str] = None    # TitaNet voice auth worker
+    
+    @property
+    def tts_synthesis_url(self) -> str:
+        """Get TTS synthesis endpoint URL based on environment."""
+        if self.aura_env == "PROD":
+            return "http://xtts-service.default.svc.cluster.local:8000"
+        return self.tts_worker_url
+    
+    @property
+    def voice_security_url(self) -> str:
+        """Get voice security endpoint URL based on environment."""
+        if self.aura_env == "PROD":
+            return "http://titanet-service.default.svc.cluster.local:8000"
+        return self.voice_worker_url
+    
     class Config:
         env_file = "../.env"
         env_file_encoding = "utf-8"

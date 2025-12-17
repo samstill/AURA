@@ -2,15 +2,21 @@
 TTS Service (Text-to-Speech)
 ============================
 
-Uses Microsoft Edge TTS - completely FREE, no API key needed!
-Implements sentence buffering for natural, non-robotic speech output.
+Dual-mode TTS service supporting:
+- LOCAL: Microsoft Edge TTS (free, no GPU needed)
+- REMOTE: XTTS-v2 via Colab/K8s worker (high-quality, cloneable voice)
+
+The mode is auto-detected based on TTS_WORKER_URL presence.
 """
 
 import os
 import io
 import logging
+import aiohttp
 import edge_tts
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
+
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +41,31 @@ EDGE_VOICES = {
 
 class TTSService:
     """
-    Text-to-Speech service using Microsoft Edge TTS.
+    Text-to-Speech service with dual-mode support:
+    - LOCAL: Microsoft Edge TTS (free, no GPU needed)
+    - REMOTE: XTTS-v2 via Colab worker (high-quality, cloneable)
     
     Features:
-    - Completely FREE - no API key needed!
-    - High-quality neural voices
+    - Automatic mode detection based on TTS_WORKER_URL
     - Sentence buffering for natural speech
-    - Multiple language support
+    - Fallback to Edge TTS if remote worker unavailable
     """
     
     def __init__(self):
+        # Configuration from settings
+        self.use_mock = settings.tts_mock
+        self.tts_worker_url = settings.tts_synthesis_url
         self.voice = os.getenv("TTS_VOICE", EDGE_VOICES["aria"])
-        self.use_mock = os.getenv("TTS_MOCK", "false").lower() == "true"
+        
+        # Mode detection: use remote if worker URL is configured
+        self.use_remote = bool(self.tts_worker_url) and not self.use_mock
         
         if self.use_mock:
             logger.info("🔇 TTSService initialized in MOCK mode")
+        elif self.use_remote:
+            logger.info(f"🎙️ TTSService initialized in REMOTE mode")
+            logger.info(f"   Target: {self.tts_worker_url}")
+            logger.info(f"   Environment: {settings.aura_env}")
         else:
             logger.info(f"🔊 TTSService initialized with Edge TTS (voice: {self.voice})")
 
@@ -65,31 +81,91 @@ class TTSService:
             text_stream: Async generator yielding text chunks
             
         Yields:
-            Audio bytes (MP3 format) for each synthesized sentence/chunk
+            Audio bytes (WAV for remote XTTS, MP3 for Edge TTS)
         """
         buffer = ""
         # Punctuation that marks a "speakable chunk"
-        sentence_endings = {".", "!", "?", "\n"}
+        sentence_endings = {".", "!", "?", "\n", ":", ";"}
 
         async for chunk in text_stream:
             buffer += chunk
             
-            # Heuristic: Speak if we hit punctuation OR buffer gets too long
-            if any(end in buffer for end in sentence_endings) or len(buffer) > 150:
-                audio = await self._synthesize(buffer.strip())
+            # Buffer until we have a complete thought/sentence for better prosody
+            # For remote XTTS, we want slightly larger chunks for better quality
+            min_buffer = 50 if self.use_remote else 10
+            
+            if any(end in buffer for end in sentence_endings) and len(buffer) > min_buffer:
+                audio = await self._synthesize_chunk(buffer.strip())
                 if audio:
                     yield audio
                 buffer = ""
 
         # Flush whatever is left at the end
         if buffer.strip():
-            audio = await self._synthesize(buffer.strip())
+            audio = await self._synthesize_chunk(buffer.strip())
             if audio:
                 yield audio
 
-    async def _synthesize(self, text: str) -> bytes:
+    async def _synthesize_chunk(self, text: str) -> bytes:
         """
-        Uses Edge TTS to synthesize speech.
+        Route synthesis to appropriate backend.
+        """
+        if not text.strip():
+            return b''
+        
+        if self.use_mock:
+            logger.debug(f"🔇 Mock TTS: '{text[:30]}...'")
+            return b'\x00' * 1024
+        
+        if self.use_remote:
+            return await self._synthesize_remote(text)
+        
+        return await self._synthesize_edge(text)
+
+    async def _synthesize_remote(self, text: str) -> bytes:
+        """
+        Calls the remote XTTS-v2 endpoint (Colab or K8s worker).
+        
+        Args:
+            text: Text to convert to speech
+            
+        Returns:
+            Audio bytes (WAV format, 24kHz)
+        """
+        if not self.tts_worker_url:
+            logger.warning("TTS Worker URL not configured, falling back to Edge TTS")
+            return await self._synthesize_edge(text)
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.tts_worker_url}/synthesize"
+                
+                async with session.post(
+                    url, 
+                    params={"text": text, "language": "en"},
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as resp:
+                    if resp.status == 200:
+                        audio_data = await resp.read()
+                        logger.info(f"🎙️ XTTS: {len(audio_data)} bytes for '{text[:30]}...'")
+                        return audio_data
+                    else:
+                        error_text = await resp.text()
+                        logger.error(f"XTTS Worker Error {resp.status}: {error_text}")
+                        # Fallback to Edge TTS
+                        return await self._synthesize_edge(text)
+                        
+        except aiohttp.ClientError as e:
+            logger.error(f"XTTS Connection Failed: {e}")
+            # Fallback to Edge TTS
+            return await self._synthesize_edge(text)
+        except Exception as e:
+            logger.error(f"XTTS Unexpected Error: {e}")
+            return await self._synthesize_edge(text)
+
+    async def _synthesize_edge(self, text: str) -> bytes:
+        """
+        Uses Microsoft Edge TTS to synthesize speech (local fallback).
         
         Args:
             text: Text to convert to speech
@@ -99,10 +175,6 @@ class TTSService:
         """
         if not text.strip():
             return b''
-
-        if self.use_mock:
-            logger.debug(f"🔇 Mock TTS: '{text[:30]}...'")
-            return b'\x00' * 1024
 
         try:
             # Create TTS communicate object
@@ -123,7 +195,19 @@ class TTSService:
             logger.error(f"Edge TTS Error: {e}")
             return b''
 
+    async def synthesize_text(self, text: str) -> bytes:
+        """
+        One-shot synthesis for a complete text string.
+        Useful for testing or short phrases.
+        
+        Args:
+            text: Complete text to synthesize
+            
+        Returns:
+            Audio bytes
+        """
+        return await self._synthesize_chunk(text)
+
 
 # Singleton instance
 tts_service = TTSService()
-
