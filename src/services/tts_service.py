@@ -124,13 +124,17 @@ class TTSService:
 
     async def _synthesize_remote(self, text: str) -> bytes:
         """
-        Calls the remote XTTS-v2 endpoint (Colab or K8s worker).
+        Calls the remote TTS endpoint (Fish Speech or XTTS on Colab/K8s).
+        
+        Supports both:
+        - Fish Speech API: POST /v1/tts with JSON body
+        - XTTS API: POST /synthesize with query params
         
         Args:
             text: Text to convert to speech
             
         Returns:
-            Audio bytes (WAV format, 24kHz)
+            Audio bytes (WAV format)
         """
         if not self.tts_worker_url:
             logger.warning("TTS Worker URL not configured, falling back to Edge TTS")
@@ -138,10 +142,48 @@ class TTSService:
         
         try:
             async with aiohttp.ClientSession() as session:
+                # Try Fish Speech API first (POST /v1/tts with JSON)
+                fish_speech_url = f"{self.tts_worker_url}/v1/tts"
+                
+                async with session.post(
+                    fish_speech_url,
+                    json={
+                        "text": text,
+                        "reference_id": "aura",  # Voice clone reference
+                        "format": "wav"
+                    },
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as resp:
+                    if resp.status == 200:
+                        audio_data = await resp.read()
+                        logger.info(f"🐟 Fish Speech: {len(audio_data)} bytes for '{text[:30]}...'")
+                        return audio_data
+                    elif resp.status == 404:
+                        # Fallback to XTTS-style API
+                        logger.debug("Fish Speech endpoint not found, trying XTTS format...")
+                        return await self._synthesize_xtts(text)
+                    else:
+                        error_text = await resp.text()
+                        logger.error(f"Fish Speech Error {resp.status}: {error_text}")
+                        return await self._synthesize_edge(text)
+                        
+        except aiohttp.ClientError as e:
+            logger.error(f"TTS Connection Failed: {e}")
+            return await self._synthesize_edge(text)
+        except Exception as e:
+            logger.error(f"TTS Unexpected Error: {e}")
+            return await self._synthesize_edge(text)
+
+    async def _synthesize_xtts(self, text: str) -> bytes:
+        """
+        Fallback for XTTS-v2 style API (query params format).
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
                 url = f"{self.tts_worker_url}/synthesize"
                 
                 async with session.post(
-                    url, 
+                    url,
                     params={"text": text, "language": "en"},
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as resp:
@@ -152,15 +194,9 @@ class TTSService:
                     else:
                         error_text = await resp.text()
                         logger.error(f"XTTS Worker Error {resp.status}: {error_text}")
-                        # Fallback to Edge TTS
                         return await self._synthesize_edge(text)
-                        
-        except aiohttp.ClientError as e:
-            logger.error(f"XTTS Connection Failed: {e}")
-            # Fallback to Edge TTS
-            return await self._synthesize_edge(text)
         except Exception as e:
-            logger.error(f"XTTS Unexpected Error: {e}")
+            logger.error(f"XTTS Error: {e}")
             return await self._synthesize_edge(text)
 
     async def _synthesize_edge(self, text: str) -> bytes:

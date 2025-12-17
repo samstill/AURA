@@ -1,6 +1,8 @@
-# XTTS-v2 Colab Worker Setup Guide
+# Fish Speech (OpenAudio S1) Colab Worker Setup
 
-This guide documents how to set up the Google Colab GPU worker for high-fidelity voice synthesis using Coqui XTTS-v2.
+This guide documents how to set up the Google Colab GPU worker for high-fidelity voice synthesis using Fish Speech / OpenAudio S1-mini.
+
+> **OpenAudio S1** is ranked #1 on TTS-Arena2 with 99% voice accuracy and supports emotion control.
 
 ## Prerequisites
 
@@ -17,73 +19,45 @@ Create a new Colab notebook named `dev_tts_worker.ipynb` with the following cell
 ### Cell 1: Install Dependencies
 
 ```python
-# Install Coqui TTS and networking tools
-!pip install TTS uvicorn fastapi pyngrok python-multipart nest_asyncio scipy
+# Install Fish Speech and networking tools
+!pip install fish-speech uvicorn fastapi pyngrok nest_asyncio
+
+# Download model weights (~4GB)
+!pip install huggingface_hub[cli]
+!huggingface-cli download fishaudio/openaudio-s1-mini --local-dir checkpoints/openaudio-s1-mini
 ```
 
-### Cell 2: Initialize Model
-
-```python
-import torch
-from TTS.api import TTS
-
-# Check for GPU
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"🚀 Loading XTTS-v2 on {device}...")
-
-# Initialize XTTS-v2 (Multi-lingual, Voice Cloning)
-# This downloads the ~2GB model on first run
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
-
-print("✅ Model Loaded!")
-```
-
-### Cell 3: Upload Reference Audio
+### Cell 2: Upload Reference Audio
 
 Use the Colab file browser (folder icon on left) to upload your reference voice file:
 - **Filename**: `aura_reference.wav`
 - **Requirements**: 10-15 seconds, clear audio, WAV format
 - **Tip**: Use a calm, professional voice for best results
 
-### Cell 4: Start API Server
+Also create a text file `aura_reference.lab` with the transcript of the reference audio.
 
 ```python
-from fastapi import FastAPI, Response
-import uvicorn
+# Create references directory structure
+!mkdir -p references/aura
+!mv aura_reference.wav references/aura/sample.wav
+
+# Create the label file with transcript (edit the text below)
+with open("references/aura/sample.lab", "w") as f:
+    f.write("Hello, I am Aura, your AI assistant. How can I help you today?")
+
+print("✅ Reference audio configured!")
+```
+
+### Cell 3: Start API Server with Ngrok
+
+```python
+import subprocess
+import threading
+import time
 import nest_asyncio
 from pyngrok import ngrok
-import io
-import numpy as np
-import scipy.io.wavfile
 
-app = FastAPI()
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "model": "xtts-v2"}
-
-@app.post("/synthesize")
-async def synthesize(text: str, language: str = "en"):
-    """
-    Generates audio from text using the reference voice style.
-    Returns: WAV audio bytes (24kHz).
-    """
-    try:
-        # Generate audio using reference voice
-        wav = tts.tts(
-            text=text, 
-            language=language, 
-            speaker_wav="aura_reference.wav",
-            speed=1.0  # Increase to 1.2 for snappier responses
-        )
-        
-        # Convert to WAV bytes
-        byte_io = io.BytesIO()
-        scipy.io.wavfile.write(byte_io, 24000, np.array(wav))
-        
-        return Response(content=byte_io.getvalue(), media_type="audio/wav")
-    except Exception as e:
-        return Response(content=str(e), status_code=500)
+nest_asyncio.apply()
 
 # ============================================================
 # IMPORTANT: Replace with YOUR ngrok auth token
@@ -91,18 +65,67 @@ async def synthesize(text: str, language: str = "en"):
 # ============================================================
 ngrok.set_auth_token("YOUR_NGROK_AUTH_TOKEN")
 
-# Start tunnel
-public_url = ngrok.connect(8001).public_url
+# Start Fish Speech API server in background
+def start_server():
+    subprocess.run([
+        "python", "-m", "tools.api_server",
+        "--listen", "0.0.0.0:8080",
+        "--llama-checkpoint-path", "checkpoints/openaudio-s1-mini",
+        "--decoder-checkpoint-path", "checkpoints/openaudio-s1-mini/codec.pth",
+        "--decoder-config-name", "modded_dac_vq"
+    ])
+
+server_thread = threading.Thread(target=start_server, daemon=True)
+server_thread.start()
+
+# Wait for server to start
+print("⏳ Starting Fish Speech server...")
+time.sleep(30)
+
+# Start ngrok tunnel
+public_url = ngrok.connect(8080).public_url
 print(f"\n{'='*60}")
-print(f"🎙️ XTTS Voice Factory Active!")
+print(f"🐟 Fish Speech (OpenAudio S1) Active!")
 print(f"📡 Public URL: {public_url}")
 print(f"{'='*60}")
 print(f"\nCopy this URL to your TTS_WORKER_URL environment variable")
+print(f"\nAPI Docs: {public_url}/docs")
 
-# Start server
-nest_asyncio.apply()
-uvicorn.run(app, port=8001)
+# Keep alive
+while True:
+    time.sleep(60)
 ```
+
+---
+
+## API Usage
+
+Fish Speech API endpoint for synthesis:
+
+```bash
+# Test the API
+curl -X POST "{PUBLIC_URL}/v1/tts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, I am Aura!",
+    "reference_id": "aura"
+  }' \
+  --output test.wav
+```
+
+### Emotion Control
+
+Add emotion markers directly in text:
+```
+(excited) Hello! I am so happy to help you today!
+(calm) Let me think about that for a moment.
+(sad) I am sorry to hear that.
+```
+
+Available markers:
+- **Basic**: `(angry)` `(sad)` `(excited)` `(surprised)` `(satisfied)` `(delighted)` `(scared)` `(worried)` `(nervous)` `(confident)` `(curious)` `(joyful)`
+- **Tone**: `(whispering)` `(shouting)` `(soft tone)`
+- **Effects**: `(laughing)` `(sighing)` `(chuckling)`
 
 ---
 
@@ -110,49 +133,16 @@ uvicorn.run(app, port=8001)
 
 After running the Colab notebook, update your local environment:
 
-### Option 1: Environment Variables
-
-```bash
-export TTS_WORKER_URL="https://your-ngrok-url.ngrok-free.app"
-export AURA_ENV="DEV"
-```
-
-### Option 2: Kubernetes Secrets
-
-```bash
-kubectl create secret generic aura-secrets \
-  --save-config \
-  --dry-run=client \
-  --from-literal=TTS_WORKER_URL="https://your-ngrok-url.ngrok-free.app" \
-  --from-literal=AURA_ENV="DEV" \
-  # ... other existing secrets ...
-  -o yaml | kubectl apply -f -
-```
-
-### Option 3: .env File
-
-Add to your `.env` file:
-
+### Option 1: .env File
 ```
 TTS_WORKER_URL=https://your-ngrok-url.ngrok-free.app
 AURA_ENV=DEV
 ```
 
----
-
-## Testing
-
-### Direct Worker Test
-
+### Option 2: Environment Variables
 ```bash
-curl -X POST "https://your-ngrok-url.ngrok-free.app/synthesize?text=Hello%20world" \
-  --output test.wav
-```
-
-### Backend Integration Test
-
-```bash
-python scripts/test_voice_backend.py --host localhost --port 30000
+export TTS_WORKER_URL="https://your-ngrok-url.ngrok-free.app"
+export AURA_ENV="DEV"
 ```
 
 ---
@@ -161,21 +151,20 @@ python scripts/test_voice_backend.py --host localhost --port 30000
 
 | Issue | Solution |
 |-------|----------|
-| "CUDA out of memory" | Restart Colab runtime, only run one model |
+| Model download slow | Use Colab Pro for faster download |
+| Server startup timeout | Increase sleep time to 60s |
 | Ngrok tunnel expires | Get new URL and update environment |
-| Slow first response | Normal - model warmup takes ~5s |
 | Audio sounds robotic | Use longer, clearer reference audio |
 
 ---
 
-## Production Migration
+## Comparison: Fish Speech vs XTTS
 
-In production, XTTS-v2 runs as a K8s service instead of Colab:
-
-```yaml
-# Set environment variable
-AURA_ENV=PROD
-
-# The backend automatically uses:
-# http://xtts-service.default.svc.cluster.local:8000
-```
+| Feature | Fish Speech | XTTS-v2 |
+|---------|-------------|---------|
+| TTS-Arena Rank | #1 | - |
+| Voice Accuracy | 99% | ~90% |
+| Emotion Control | ✅ Built-in markers | ❌ |
+| Python 3.12 | ✅ | ❌ |
+| VRAM Required | 4GB | 4GB |
+| Languages | 40+ | 17 |
