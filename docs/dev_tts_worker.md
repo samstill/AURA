@@ -51,6 +51,7 @@ print("✅ Reference audio configured!")
 ### Cell 3: Start API Server with Ngrok
 
 ```python
+!pip install pyngrok
 import subprocess
 import threading
 import time
