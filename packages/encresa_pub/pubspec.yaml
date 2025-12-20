@@ -1,0 +1,17 @@
+name: encresa
+description: The official Encresa Systems interface for Project AURA - Cognitive Infrastructure SDK.
+version: 0.0.1
+homepage: https://encresa.com
+repository: https://github.com/encresa/encresa-dart
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+topics:
+  - ai
+  - sdk
+  - cognitive
+  - infrastructure
+
+funding:
+  - https://encresa.com

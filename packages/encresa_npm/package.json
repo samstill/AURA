@@ -1,0 +1,31 @@
+{
+  "name": "encresa",
+  "version": "0.0.1",
+  "description": "Encresa Systems SDK - Cognitive Infrastructure for Project AURA",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/encresa/encresa-node.git"
+  },
+  "keywords": [
+    "encresa",
+    "aura",
+    "cognitive",
+    "infrastructure",
+    "sdk",
+    "ai"
+  ],
+  "author": "Encresa Systems <contact@encresa.com>",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/encresa/encresa-node/issues"
+  },
+  "homepage": "https://encresa.com",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

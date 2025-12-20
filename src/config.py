@@ -129,6 +129,10 @@ class Settings(BaseSettings):
     # Mode: DEV = Colab ngrok tunnels, PROD = K8s internal DNS
     aura_env: str = "DEV"
     
+    # Fish Audio Cloud API (preferred TTS provider)
+    fish_audio_api_key: Optional[str] = None
+    fish_audio_voice_id: str = "bf322df2096a46f18c579d0baa36f41d"  # Default: Adrian voice
+    
     # Remote worker URLs (populated via env vars in DEV mode)
     tts_worker_url: Optional[str] = None      # XTTS-v2 synthesis worker
     voice_worker_url: Optional[str] = None    # TitaNet voice auth worker

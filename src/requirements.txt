@@ -40,5 +40,6 @@ authlib>=1.3.0
 websockets>=12.0
 aiohttp>=3.9.0
 
-# TTS (Edge TTS - Free Microsoft TTS)
+# TTS (Edge TTS - Free Microsoft TTS, Fish Audio - Premium)
 edge-tts>=7.0.0
+fish-audio-sdk>=1.0.0
