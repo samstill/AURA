@@ -17,11 +17,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import chat, voice, auth
+from routers import chat, voice, auth, calendar
 from services.authentik_service import authentik_service
 from services.llm_service import llm_service
 from services.router_service import router_service
 from services.database_service import database_service
+from services.calendar_db_service import calendar_db_service
 
 # Configure logging
 logging.basicConfig(
@@ -70,6 +71,13 @@ async def lifespan(app: FastAPI):
         await database_service.connect()
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
+    
+    # Initialize Calendar SQLite Database
+    try:
+        await calendar_db_service.initialize()
+        logger.info("✅ Calendar database initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  Calendar DB initialization warning: {e}")
     
     # TODO: Initialize other services
     # - Database pool
@@ -174,6 +182,7 @@ async def root():
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["Voice"])
+app.include_router(calendar.router, prefix="/api/v1", tags=["Calendar"])
 
 # Late import to avoid circular dependencies if any
 from routers import tools

@@ -523,6 +523,84 @@
             </div>
         </section>
 
+        <!-- Google Calendar Integration Section -->
+        <section style="margin-top: 2rem;">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>📅</span> Google Calendar Integration
+                </h2>
+                <button class="btn btn-secondary btn-icon" onclick="refreshCalendarStatus()" title="Refresh">
+                    ↻
+                </button>
+            </div>
+
+            <div class="card" id="calendarSection">
+                <div id="calendarNotConnected" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="tool-icon" style="background: linear-gradient(135deg, #4285f4, #34a853);">📅</div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem;">Connect Google Calendar</h3>
+                            <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                Allow Aura to read your schedule and manage events
+                            </p>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Test User ID</label>
+                        <input type="text" id="calendarUserId" placeholder="test-user-123" value="test-user">
+                    </div>
+                    <button class="btn btn-primary" onclick="connectGoogleCalendar()">
+                        🔗 Connect with Google
+                    </button>
+                </div>
+
+                <div id="calendarConnected" style="display: none;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div class="tool-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">✓
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.1rem;">Connected</h3>
+                                <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-secondary);"
+                                    id="calendarEmail">
+                                    -
+                                </p>
+                            </div>
+                        </div>
+                        <button class="toggle-btn disconnect" onclick="disconnectGoogleCalendar()">
+                            Disconnect
+                        </button>
+                    </div>
+
+                    <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                        📋 Synced Calendars
+                    </h4>
+                    <div id="calendarList" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Calendar items rendered here -->
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                        <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                            🔍 Test Events Query
+                        </h4>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-secondary" onclick="fetchTodayEvents()">Today</button>
+                            <button class="btn btn-secondary" onclick="fetchTomorrowEvents()">Tomorrow</button>
+                            <button class="btn btn-secondary" onclick="fetchWeekEvents()">This Week</button>
+                        </div>
+                        <pre id="eventsDisplay"
+                            style="margin-top: 1rem; padding: 1rem; background: #000; border-radius: 8px; font-size: 0.8rem; max-height: 200px; overflow-y: auto; display: none;"></pre>
+                    </div>
+                </div>
+
+                <div id="calendarLoading" style="text-align: center; padding: 2rem; display: none;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
+                    <p style="color: var(--text-secondary);">Checking connection...</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Logs Section -->
         <section style="margin-top: 2rem;">
             <div class="section-header">
@@ -797,10 +875,184 @@
         }
 
         // =====================================================================
+        // GOOGLE CALENDAR INTEGRATION
+        // =====================================================================
+
+        let calendarUserId = 'test-user';
+
+        async function refreshCalendarStatus() {
+            calendarUserId = document.getElementById('calendarUserId')?.value || 'test-user';
+
+            document.getElementById('calendarLoading').style.display = 'block';
+            document.getElementById('calendarNotConnected').style.display = 'none';
+            document.getElementById('calendarConnected').style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/calendar/status?user_id=${calendarUserId}`);
+                const data = await res.json();
+
+                document.getElementById('calendarLoading').style.display = 'none';
+
+                if (data.connected) {
+                    document.getElementById('calendarConnected').style.display = 'block';
+                    document.getElementById('calendarEmail').textContent = data.email || 'Connected';
+                    log(`📅 Calendar connected: ${data.email}`);
+                    await fetchCalendarSources();
+                } else {
+                    document.getElementById('calendarNotConnected').style.display = 'block';
+                    log('📅 Calendar not connected');
+                }
+            } catch (e) {
+                document.getElementById('calendarLoading').style.display = 'none';
+                document.getElementById('calendarNotConnected').style.display = 'block';
+                log(`❌ Calendar check failed: ${e.message}`, 'error');
+            }
+        }
+
+        function connectGoogleCalendar() {
+            calendarUserId = document.getElementById('calendarUserId').value.trim() || 'test-user';
+            log(`🔗 Starting Google OAuth for user: ${calendarUserId}`);
+
+            // Open in new window to handle OAuth redirect
+            const authUrl = `${API_BASE}/calendar/connect?user_id=${calendarUserId}`;
+            const authWindow = window.open(authUrl, 'GoogleAuth', 'width=600,height=700');
+
+            // Listen for success message from popup
+            window.addEventListener('message', function handler(e) {
+                if (e.data?.type === 'GOOGLE_CALENDAR_CONNECTED') {
+                    log(`✅ Calendar connected: ${e.data.email}`);
+                    refreshCalendarStatus();
+                    window.removeEventListener('message', handler);
+                }
+            });
+
+            // Poll for connection (fallback if postMessage doesn't work)
+            const pollInterval = setInterval(async () => {
+                if (authWindow.closed) {
+                    clearInterval(pollInterval);
+                    await refreshCalendarStatus();
+                }
+            }, 1000);
+        }
+
+        async function disconnectGoogleCalendar() {
+            if (!confirm('Disconnect Google Calendar?')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/calendar/disconnect?user_id=${calendarUserId}`, {
+                    method: 'POST'
+                });
+
+                if (res.ok) {
+                    log('🔌 Calendar disconnected');
+                    await refreshCalendarStatus();
+                } else {
+                    log('❌ Disconnect failed', 'error');
+                }
+            } catch (e) {
+                log(`❌ Disconnect error: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchCalendarSources() {
+            try {
+                const res = await fetch(`${API_BASE}/calendar/sources?user_id=${calendarUserId}`);
+                const calendars = await res.json();
+
+                const list = document.getElementById('calendarList');
+                if (calendars.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">No calendars found</p>';
+                    return;
+                }
+
+                list.innerHTML = calendars.map(cal => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 12px; height: 12px; border-radius: 3px; background: ${cal.color || '#6366f1'};"></div>
+                            <span style="font-size: 0.9rem;">${cal.calendar_name}</span>
+                            <span class="badge">${cal.access_role || 'reader'}</span>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" ${cal.sync_enabled ? 'checked' : ''} 
+                                   onchange="toggleCalendarSync(${cal.id}, this.checked)"
+                                   style="width: 18px; height: 18px; accent-color: var(--accent);">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Sync</span>
+                        </label>
+                    </div>
+                `).join('');
+            } catch (e) {
+                log(`❌ Failed to fetch calendars: ${e.message}`, 'error');
+            }
+        }
+
+        async function toggleCalendarSync(calendarId, enabled) {
+            try {
+                await fetch(`${API_BASE}/calendar/sources/${calendarId}/sync?user_id=${calendarUserId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sync_enabled: enabled })
+                });
+                log(`${enabled ? '✅' : '⬜'} Calendar sync ${enabled ? 'enabled' : 'disabled'}`);
+            } catch (e) {
+                log(`❌ Toggle sync failed: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchEvents(startDate, endDate) {
+            const display = document.getElementById('eventsDisplay');
+            display.style.display = 'block';
+            display.textContent = 'Loading events...';
+
+            try {
+                const res = await fetch(
+                    `${API_BASE}/calendar/events?user_id=${calendarUserId}&start=${startDate.toISOString()}&end=${endDate.toISOString()}`
+                );
+                const events = await res.json();
+
+                if (events.length === 0) {
+                    display.textContent = 'No events found in this time range.';
+                } else {
+                    display.textContent = JSON.stringify(events, null, 2);
+                }
+                log(`📅 Fetched ${events.length} events`);
+            } catch (e) {
+                display.textContent = `Error: ${e.message}`;
+                log(`❌ Events fetch failed: ${e.message}`, 'error');
+            }
+        }
+
+        function fetchTodayEvents() {
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            const end = new Date();
+            end.setHours(23, 59, 59, 999);
+            fetchEvents(start, end);
+        }
+
+        function fetchTomorrowEvents() {
+            const start = new Date();
+            start.setDate(start.getDate() + 1);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(start);
+            end.setHours(23, 59, 59, 999);
+            fetchEvents(start, end);
+        }
+
+        function fetchWeekEvents() {
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            const end = new Date();
+            end.setDate(end.getDate() + 7);
+            end.setHours(23, 59, 59, 999);
+            fetchEvents(start, end);
+        }
+
+        // =====================================================================
         // INITIALIZATION
         // =====================================================================
 
         fetchTools();
+        refreshCalendarStatus();
     </script>
 </body>
 

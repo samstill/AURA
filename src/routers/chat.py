@@ -114,10 +114,10 @@ async def send_message(
 async def send_message_dev(request: ChatRequest):
     """
     Dev endpoint for testing without Auth headers.
-    Uses a hardcoded 'dev-user' ID.
+    Uses a hardcoded 'test-user' ID (matches calendar integration UI).
     """
     user_text = request.message
-    user_id = "00000000-0000-0000-0000-000000000000" 
+    user_id = "test-user"  # Must match the user_id used in calendar connection 
     
     if not llm_service.is_initialized:
         raise HTTPException(status_code=503, detail="LLM Service unavailable.")

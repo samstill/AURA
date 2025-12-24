@@ -926,6 +926,14 @@
             <span class="info-banner-icon">🧪</span>
             <span>Development Tester • API: <code id="apiUrlDisplay">http://localhost:30000</code> • Endpoint:
                 <code>/api/v1/chat/send/dev</code></span>
+            <span style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+                <span id="calendarBadge"
+                    style="display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; background: var(--bg-tertiary); border-radius: 50px; font-size: 0.8rem; cursor: pointer;"
+                    onclick="openCalendarSettings()">
+                    <span id="calendarStatusIcon">⚪</span>
+                    <span id="calendarStatusLabel">Calendar</span>
+                </span>
+            </span>
         </div>
 
         <div class="chat-container">
@@ -934,6 +942,9 @@
                 <div class="route-info">
                     <div class="route-chip fast">⚡ FAST = Flash</div>
                     <div class="route-chip smart">🧠 SMART = Pro</div>
+                    <button onclick="clearChat()"
+                        style="margin-left: 1rem; padding: 0.4rem 0.8rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4); color: #f87171; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🗑️
+                        Clear</button>
                 </div>
             </div>
 
@@ -1056,6 +1067,10 @@
 
         let isStreaming = false;
 
+        // Conversation memory - persists until page refresh
+        let conversationHistory = [];
+        const MAX_HISTORY_MESSAGES = 20; // Keep last 20 messages for context
+
         // Enter to send (Shift+Enter for new line)
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -1100,10 +1115,27 @@
             // Hide empty state
             emptyState.style.display = 'none';
 
-            // Add user message
+            // Add user message to UI and history
             addMessage(text, 'user');
+            conversationHistory.push({ role: 'user', content: text });
+
+            // Trim history if too long
+            while (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+                conversationHistory.shift();
+            }
+
             messageInput.value = '';
             messageInput.style.height = 'auto';
+
+            // Build context message with history
+            let contextMessage = text;
+            if (conversationHistory.length > 1) {
+                // Include previous conversation for context
+                const historyContext = conversationHistory.slice(0, -1).map(msg =>
+                    `${msg.role === 'user' ? 'User' : 'Aura'}: ${msg.content}`
+                ).join('\n');
+                contextMessage = `[Previous conversation for context - DO NOT repeat greetings or re-introduce yourself]:\n${historyContext}\n\n[Current message from user]:\n${text}`;
+            }
 
             // Create assistant message element for streaming
             const assistantMsg = document.createElement('div');
@@ -1126,7 +1158,7 @@
                 const response = await fetch(`${API_URL}/api/v1/chat/send/dev`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text }),
+                    body: JSON.stringify({ message: contextMessage }),
                 });
 
                 const route = response.headers.get('X-Aura-Route') || 'UNKNOWN';
@@ -1169,6 +1201,10 @@
                     scrollToBottom();
                 }
 
+                // Store assistant response in history (cleaned)
+                const cleanResponse = fullText.replace(/\|\|MODEL:.*?\|\|/g, '').trim();
+                conversationHistory.push({ role: 'assistant', content: cleanResponse });
+
             } catch (error) {
                 assistantMsg.className = 'message error';
                 assistantMsg.innerHTML = `❌ ${error.message}`;
@@ -1185,6 +1221,26 @@
             msg.textContent = text;
             chatMessages.appendChild(msg);
             scrollToBottom();
+        }
+
+        function clearChat() {
+            // Clear conversation history
+            conversationHistory = [];
+
+            // Clear UI messages
+            chatMessages.innerHTML = `
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon">🌟</div>
+                    <h3>Test the Hybrid Brain</h3>
+                    <p>Send a message to see Aura's neural router in action. Simple queries use Flash ⚡, complex tasks use Pro 🧠</p>
+                    <div class="quick-actions">
+                        <button class="quick-btn fast" onclick="sendQuickMessage('Hello!')">👋 Hello!</button>
+                        <button class="quick-btn fast" onclick="sendQuickMessage('Tell me a joke')">😄 Tell a joke</button>
+                        <button class="quick-btn fast" onclick="sendQuickMessage('What can you do?')">❓ What can you do?</button>
+                        <button class="quick-btn smart" onclick="sendQuickMessage('Check my calendar for tomorrow')">📅 Check calendar</button>
+                    </div>
+                </div>
+            `;
         }
 
         function formatText(text) {
@@ -1503,6 +1559,61 @@
                 sendVoiceMessage();
             }
         });
+
+        // =========================================================================
+        // GOOGLE CALENDAR INTEGRATION
+        // =========================================================================
+
+        async function checkCalendarStatus() {
+            const userId = 'test-user';
+            try {
+                const res = await fetch(`${API_URL}/api/v1/calendar/status?user_id=${userId}`);
+                const data = await res.json();
+
+                const icon = document.getElementById('calendarStatusIcon');
+                const label = document.getElementById('calendarStatusLabel');
+                const badge = document.getElementById('calendarBadge');
+
+                if (data.connected) {
+                    icon.textContent = '🟢';
+                    label.textContent = 'Calendar Connected';
+                    badge.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                    badge.style.border = '1px solid rgba(16, 185, 129, 0.5)';
+                } else {
+                    icon.textContent = '⚪';
+                    label.textContent = 'Connect Calendar';
+                    badge.style.border = '1px solid var(--border)';
+                }
+            } catch (e) {
+                console.log('Calendar status check failed:', e.message);
+            }
+        }
+
+        function openCalendarSettings() {
+            const userId = 'test-user';
+            const confirmed = confirm(
+                'Open Google Calendar connection?\n\n' +
+                '• Click OK to connect your Google Calendar\n' +
+                '• This opens a new window for Google OAuth\n' +
+                '• After connecting, calendar events will be available to Aura'
+            );
+
+            if (confirmed) {
+                const authUrl = `${API_URL}/api/v1/calendar/connect?user_id=${userId}`;
+                const authWindow = window.open(authUrl, 'GoogleAuth', 'width=600,height=700');
+
+                // Poll for connection completion
+                const pollInterval = setInterval(async () => {
+                    if (authWindow.closed) {
+                        clearInterval(pollInterval);
+                        await checkCalendarStatus();
+                    }
+                }, 1000);
+            }
+        }
+
+        // Check calendar status on load
+        checkCalendarStatus();
     </script>
 </body>
 

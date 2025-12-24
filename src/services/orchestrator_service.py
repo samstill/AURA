@@ -173,27 +173,26 @@ Speak naturally as if talking to a friend."""
             smart_result = await smart_task
             logger.info("🧠 [Orchestrator] Smart Agent completed")
             
-            # Explicit Attribution Logic
-            if "[Fallback:" in smart_result or "[System Error:" in smart_result or "[Agent Error:" in smart_result:
-                 pass 
+            # Check if result is from fallback provider
+            is_fallback = "[Fallback:" in smart_result
+            
+            # Extract and yield the model attribution
+            if is_fallback:
+                # Extract fallback model name for attribution
+                import re
+                match = re.search(r'\[Fallback: ([^\]]+)\]', smart_result)
+                if match:
+                    yield f"||MODEL:{match.group(1)}||"
+                # Remove the [Fallback: xxx] prefix for cleaner display
+                smart_result = re.sub(r'\[Fallback: [^\]]+\]\s*', '', smart_result)
+            elif "[System Error:" in smart_result or "[Agent Error:" in smart_result:
+                pass  # Don't add model tag for errors
             else:
-                 yield f"||MODEL:{settings.gemini_smart_model}||"
+                yield f"||MODEL:{settings.gemini_smart_model}||"
             
-            # 4. Third Fast Model: Smooth Transition
-            transition_prompt = f"""
-            You are context-aware. 
-            You just said to the user: "{filler_content}"
-            The result of the check is: "{smart_result}"
-            
-            Seamlessly continue your response from where you left off.
-            Do NOT repeat what you already said.
-            Format the result nicely.
-            If the result error, apologize briefly.
-            """
-            
-            # Disable auto-tagging so Groq doesn't overwrite "Gemini 3 Pro"
-            async for chunk in self.llm_service.get_reflex_response(transition_prompt, AURA_SYSTEM_PROMPT, include_model_header=False):
-                yield chunk
+            # IMPORTANT: Directly yield the smart result instead of reprocessing
+            # The smart agent already produced a well-formatted response with all the data
+            yield smart_result
             
         except Exception as e:
             logger.error(f"Smart task failed: {e}")

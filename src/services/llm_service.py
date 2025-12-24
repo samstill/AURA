@@ -28,13 +28,14 @@ class LLMService:
     
     def __init__(self):
         self._initialized = False
-        self._initialized = False
         self.fast_model = None
         self.smart_model = None
         
         # Multi-provider clients
         self.groq_client: Optional[AsyncOpenAI] = None
         self.openrouter_client: Optional[AsyncOpenAI] = None
+        self.openai_client: Optional[AsyncOpenAI] = None
+        self.deepseek_client: Optional[AsyncOpenAI] = None
     
     def initialize(self):
         """
@@ -53,8 +54,28 @@ class LLMService:
             self.fast_model = genai.GenerativeModel(settings.gemini_fast_model)
             
             # Smart Model = Gemini Pro (Deep Lobe)
-            # Smart Model = Gemini Pro (Deep Lobe)
             self.smart_model = genai.GenerativeModel(settings.gemini_smart_model)
+            
+            # OpenAI Native Client (Best tool calling)
+            if settings.openai_api_key:
+                try:
+                    self.openai_client = AsyncOpenAI(
+                        api_key=settings.openai_api_key
+                    )
+                    logger.info(f"✅ OpenAI Client initialized ({settings.openai_fast_model} / {settings.openai_smart_model})")
+                except Exception as e:
+                    logger.warning(f"⚠️ OpenAI initialization failed: {e}")
+            
+            # DeepSeek Native Client
+            if settings.deepseek_api_key:
+                try:
+                    self.deepseek_client = AsyncOpenAI(
+                        api_key=settings.deepseek_api_key,
+                        base_url="https://api.deepseek.com"
+                    )
+                    logger.info(f"✅ DeepSeek Client initialized ({settings.deepseek_model})")
+                except Exception as e:
+                    logger.warning(f"⚠️ DeepSeek initialization failed: {e}")
             
             # Groq Initialization
             if settings.groq_api_key:

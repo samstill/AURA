@@ -31,14 +31,22 @@ class RouterService:
         # Patterns that indicate agentic/tool-use intent
         self.agentic_patterns = [
             # Action verbs
-            r"\b(book|schedule|create|send|remind|set|make|add)\b.*\b(meeting|appointment|event|email|reminder|alarm|task)\b",
+            r"\b(book|schedule|create|send|remind|set|make|add)\\b.*\b(meeting|appointment|event|email|reminder|alarm|task)\b",
             r"\b(search|find|look up|google|lookup)\b",
-            r"\b(check|show|get|what's on)\b.*\b(calendar|schedule|events|appointments)\b",
+            r"\b(check|show|get|what's on|what is on)\b.*\b(calendar|schedule|events|appointments)\b",
             r"\b(plan|organize|arrange)\b.*\b(trip|travel|meeting|event)\b",
             r"\b(send|compose|write|draft)\b.*\b(email|message|text)\b",
             r"\b(remind me|set a reminder|don't let me forget)\b",
             # Direct tool references
             r"\b(calendar|email|web search|flight|hotel|restaurant)\b",
+            # Calendar-specific patterns (NEW)
+            r"\b(agenda|my day|today's|tomorrow's|this week)\b",
+            r"\b(what('?s| is)|when('?s| is)|do i have)\b.*\b(meeting|event|appointment|schedule|free|busy|available)\b",
+            r"\b(next meeting|next event|upcoming|scheduled)\b",
+            r"\b(brief me|summarize|summary|overview)\b.*\b(day|schedule|calendar|today|tomorrow)\b",
+            r"\b(block|focus time|deep work)\b",
+            r"\b(reschedule|move|push|cancel|delete)\b.*\b(meeting|event|appointment)\b",
+            r"\b(conflict|double.?book|overlap)\b",
             # Time-based requests often need tools
             r"\b(tomorrow|next week|this weekend|on monday|at \d+)\b.*\b(schedule|book|plan|meeting)\b",
             # Information retrieval

@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     gemini_fast_model: str = "models/gemini-2.5-flash"
     gemini_smart_model: str = "models/gemini-2.5-flash"
     
+    
     # -------------------------------------------------------------------------
     # Multi-Provider Configuration (Groq & OpenRouter)
     # -------------------------------------------------------------------------
@@ -110,10 +111,43 @@ class Settings(BaseSettings):
     openrouter_smart_model: str = "deepseek/deepseek-r1"
     
     # -------------------------------------------------------------------------
+    # OpenAI Configuration (Native API - best tool calling)
+    # -------------------------------------------------------------------------
+    # openai_api_key is already defined above
+    openai_fast_model: str = "gpt-4o-mini"  # Fast, cheap, excellent tool calling
+    openai_smart_model: str = "gpt-4o"      # Smart, great tool calling
+    
+    # -------------------------------------------------------------------------
+    # DeepSeek Configuration (Native API)
+    # -------------------------------------------------------------------------
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: str = "deepseek-chat"  # DeepSeek V3
+    
+    # -------------------------------------------------------------------------
+    # Agent Autonomy Configuration
+    # -------------------------------------------------------------------------
+    # full = act until goal achieved, no confirmations
+    # half = auto for safe actions, ask before delete/bulk (default)
+    # minimal = ask before every write action
+    agent_autonomy: str = "full"
+    agent_max_iterations: int = 10  # max tool call turns per request
+    
+    # -------------------------------------------------------------------------
     # Integrations (OAuth credentials)
     # -------------------------------------------------------------------------
     github_client_id: Optional[str] = "Ov23li9L5k6tqPjRk70h"
     github_client_secret: Optional[str] = None
+    
+    # -------------------------------------------------------------------------
+    # Google Calendar OAuth
+    # -------------------------------------------------------------------------
+    google_calendar_client_id: Optional[str] = None
+    google_calendar_client_secret: Optional[str] = None
+    google_calendar_scopes: str = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email"
+    
+    @property
+    def google_calendar_redirect_uri(self) -> str:
+        return f"{self.base_url}/api/v1/calendar/callback/google"
     
     # -------------------------------------------------------------------------
     # TTS (ElevenLabs)
