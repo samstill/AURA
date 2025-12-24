@@ -1,13 +1,22 @@
-/// Project Aura - Login Screen
-/// ============================
+/// Project Aura - Login Screen (Glassmorphic)
+/// ===========================================
 /// Native in-app authentication using Authentik Flows API.
 /// Implements the "Tactical Implementation of Desire" design philosophy.
+/// 
+/// Features:
+/// - Glassmorphic card with blur effects
+/// - Animated floating orbs for depth
+/// - Theme-aware SVG logo (dark/light)
+/// - Premium gradient backgrounds
+/// - Bottom accent gradient line
+
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../../../config/app_config.dart';
 import '../../../design_system/design_system.dart';
 import '../../data/data.dart';
 import '../../domain/domain.dart';
@@ -20,7 +29,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _totpController = TextEditingController();
@@ -32,9 +42,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool _flowStarted = false;
 
+  // Animation controllers for floating orbs
+  late AnimationController _orbController1;
+  late AnimationController _orbController2;
+  late AnimationController _orbController3;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize orb animations with different durations for organic movement
+    _orbController1 = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat(reverse: true);
+
+    _orbController2 = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat(reverse: true);
+
+    _orbController3 = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat(reverse: true);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isAuthenticated = ref.read(isAuthenticatedProvider);
       if (isAuthenticated) {
@@ -54,6 +86,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _totpController.dispose();
+    _orbController1.dispose();
+    _orbController2.dispose();
+    _orbController3.dispose();
     super.dispose();
   }
 
@@ -86,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (result.success) {
         _currentChallenge = result.challenge;
       } else {
-        _errorMessage = result.error?.displayError ?? 'Failed to start login';
+        _errorMessage = result.error?.displayError ?? "Let's try connecting again...";
       }
     });
   }
@@ -113,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _currentChallenge = result.challenge;
       } else {
         _errorMessage =
-            result.error?.displayError ?? 'Failed to restart login';
+            result.error?.displayError ?? "Let's start fresh...";
       }
     });
   }
@@ -201,83 +236,217 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuraScaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo with halo glow effect
-                _buildLogo().withScaleEntrance(),
-                const SizedBox(height: 32),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final aura = context.aura;
 
-                // Title
-                Text(
-                  'Project Aura',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // Gradient Background
+          _buildGradientBackground(isDark, aura),
+
+          // Floating Orbs
+          _buildFloatingOrbs(isDark),
+
+          // Main Content
+          SafeArea(
+            child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32.0),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Logo
+                          _buildLogo(isDark).withScaleEntrance(),
+                          const SizedBox(height: 40),
+
+                          // Title
+                          Text(
+                            'Welcome Back',
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: aura.textPrimary,
+                                ),
+                          ).withIce(),
+                          const SizedBox(height: 8),
+
+                          Text(
+                            'Enter your credentials to continue',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: aura.textSecondary,
+                                ),
+                          ).withStaggeredEntrance(index: 1),
+                          const SizedBox(height: 40),
+
+                          // Form content
+                          _buildStageContent().withStaggeredEntrance(index: 2),
+                        ],
                       ),
-                ).withIce(),
-                const SizedBox(height: 8),
-
-                Text(
-                  'Sign in to continue',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.aura.textSecondary,
-                      ),
-                ).withStaggeredEntrance(index: 1),
-                const SizedBox(height: 48),
-
-                // Form content
-                _buildStageContent().withStaggeredEntrance(index: 2),
-                const SizedBox(height: 32),
-
-                // Server info
-                Text(
-                  'Authentik: ${AppConfig.host}:${AppConfig.authentikPort}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.aura.textSecondary.withOpacity(0.5),
-                        fontFamily: 'monospace',
-                      ),
+                    ),
+                  ),
                 ),
-              ],
-            ),
           ),
+
+          // Bottom Accent Line
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildBottomAccent(isDark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradientBackground(bool isDark, AuraColors aura) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 800),
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.5),
+          radius: 1.5,
+          colors: isDark
+              ? [
+                  const Color(0xFF121212),
+                  const Color(0xFF080808),
+                  aura.bgPrimary,
+                ]
+              : [
+                  const Color(0xFFFFF5F7),
+                  const Color(0xFFFFF9F5),
+                  aura.bgPrimary,
+                ],
+          stops: isDark ? const [0.0, 0.4, 1.0] : const [0.0, 0.3, 1.0],
         ),
       ),
     );
   }
 
-  Widget _buildLogo() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AuraColors.heartbeat, AuraColors.tether],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildFloatingOrbs(bool isDark) {
+    return Stack(
+      children: [
+        // Purple/Tether orb - top left with curved motion
+        AnimatedBuilder(
+          animation: _orbController1,
+          builder: (context, child) {
+            // Use curved animation for smooth organic movement
+            final curvedValue = Curves.easeInOut.transform(_orbController1.value);
+            final sinValue = sin(curvedValue * pi * 2) * 0.5 + 0.5;
+            
+            return Positioned(
+              top: MediaQuery.of(context).size.height * 0.1 +
+                  (curvedValue * 50) + (sinValue * 20),
+              left: MediaQuery.of(context).size.width * 0.05 +
+                  (sinValue * 40),
+              child: Transform.scale(
+                scale: 1.0 + (curvedValue * 0.15),
+                child: _FloatingOrb(
+                  color: AuraColors.tether,
+                  size: 350,
+                  opacity: (isDark ? 0.2 : 0.35) + (sinValue * 0.05),
+                  blurRadius: 100,
+                ),
+              ),
+            );
+          },
         ),
-        borderRadius: BorderRadius.circular(28),
+
+        // Pink/Heartbeat orb - bottom right with pulsing motion
+        AnimatedBuilder(
+          animation: _orbController2,
+          builder: (context, child) {
+            final curvedValue = Curves.easeInOut.transform(_orbController2.value);
+            final cosValue = cos(curvedValue * pi * 2) * 0.5 + 0.5;
+            
+            return Positioned(
+              bottom: MediaQuery.of(context).size.height * 0.1 +
+                  (curvedValue * 60) + (cosValue * 25),
+              right: MediaQuery.of(context).size.width * 0.05 +
+                  (cosValue * 50),
+              child: Transform.scale(
+                scale: 1.0 + (cosValue * 0.2),
+                child: _FloatingOrb(
+                  color: AuraColors.heartbeat,
+                  size: 300,
+                  opacity: (isDark ? 0.18 : 0.32) + (curvedValue * 0.05),
+                  blurRadius: 90,
+                ),
+              ),
+            );
+          },
+        ),
+
+        // Cyan/Halo orb - center right with floating motion
+        AnimatedBuilder(
+          animation: _orbController3,
+          builder: (context, child) {
+            final curvedValue = Curves.easeInOut.transform(_orbController3.value);
+            final sinValue = sin(curvedValue * pi * 2) * 0.5 + 0.5;
+            
+            return Positioned(
+              top: MediaQuery.of(context).size.height * 0.35 +
+                  (sinValue * 80),
+              right: MediaQuery.of(context).size.width * 0.15 +
+                  (curvedValue * 60),
+              child: Transform.scale(
+                scale: 1.0 + (sinValue * 0.1),
+                child: _FloatingOrb(
+                  color: AuraColors.halo,
+                  size: 250,
+                  opacity: (isDark ? 0.12 : 0.28) + (curvedValue * 0.03),
+                  blurRadius: 80,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogo(bool isDark) {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: AuraColors.heartbeat.withOpacity(0.4),
+            color: AuraColors.tether.withOpacity(0.3),
             blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-          BoxShadow(
-            color: AuraColors.halo.withOpacity(0.2),
-            blurRadius: 60,
-            spreadRadius: 10,
+            spreadRadius: 5,
           ),
         ],
       ),
-      child: const Icon(
-        LucideIcons.sparkles,
-        size: 48,
-        color: Colors.white,
+      child: SvgPicture.asset(
+        isDark ? 'assets/icons/logo_light.svg' : 'assets/icons/icon_dark.svg',
+        width: 80,
+        height: 80,
+      ),
+    ).withJelly(onPressed: null);
+  }
+
+  Widget _buildBottomAccent(bool isDark) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 800),
+      opacity: isDark ? 0.3 : 0.25,
+      child: Container(
+        height: 2,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.transparent,
+              AuraColors.tether,
+              AuraColors.heartbeat,
+              AuraColors.halo,
+              Colors.transparent,
+            ],
+            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+          ),
+        ),
       ),
     );
   }
@@ -348,6 +517,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildIdentificationStage() {
+    final aura = context.aura;
+
     return AuraGlass(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -357,17 +528,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _buildErrorMessage(),
             const SizedBox(height: 16),
           ],
-          TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autofocus: true,
-            style: TextStyle(color: context.aura.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Email or Username',
-              hintText: 'Enter your email or username',
-              prefixIcon: AuraIcon.glass(LucideIcons.user, size: 20),
+          Text(
+            'Email',
+            style: TextStyle(
+              color: aura.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
+          ),
+          const SizedBox(height: 8),
+          _buildInputField(
+            controller: _emailController,
+            hintText: 'your@email.com',
+            keyboardType: TextInputType.emailAddress,
+            prefixIcon: LucideIcons.user,
             onSubmitted: (_) => _submitIdentification(),
           ),
           const SizedBox(height: 24),
@@ -377,6 +551,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isLoading: _isLoading,
             fullWidth: true,
           ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text.rich(
+              TextSpan(
+                text: "Don't have an account? ",
+                style: TextStyle(
+                  color: aura.textSecondary,
+                  fontSize: 14,
+                ),
+                children: [
+                  WidgetSpan(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Handle sign up navigation
+                      },
+                      child: Text(
+                        'Sign up',
+                        style: TextStyle(
+                          color: AuraColors.tether,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -384,6 +587,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildPasswordStage() {
     final challenge = _currentChallenge as PasswordChallenge?;
+    final aura = context.aura;
 
     return AuraGlass(
       padding: const EdgeInsets.all(24),
@@ -394,9 +598,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: context.aura.bgSecondary.withOpacity(0.5),
+                color: aura.bgSecondary.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.aura.glassBorder),
+                border: Border.all(color: aura.glassBorder),
               ),
               child: Row(
                 children: [
@@ -428,25 +632,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _buildErrorMessage(),
             const SizedBox(height: 16),
           ],
-          TextField(
+          Text(
+            'Password',
+            style: TextStyle(
+              color: aura.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildInputField(
             controller: _passwordController,
+            hintText: '••••••••',
             obscureText: _obscurePassword,
-            autofocus: true,
-            style: TextStyle(color: context.aura.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Password',
-              hintText: 'Enter your password',
-              prefixIcon: AuraIcon.glass(LucideIcons.lock, size: 20),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff,
-                  color: context.aura.textSecondary,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
+            prefixIcon: LucideIcons.lock,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff,
+                color: aura.textSecondary,
+                size: 20,
               ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
             onSubmitted: (_) => _submitPassword(),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () {
+                // Handle forgot password
+              },
+              child: Text(
+                'Forgot password?',
+                style: TextStyle(
+                  color: AuraColors.tether,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           AuraButton.heartbeat(
@@ -455,8 +681,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isLoading: _isLoading,
             fullWidth: true,
           ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text.rich(
+              TextSpan(
+                text: "Don't have an account? ",
+                style: TextStyle(
+                  color: aura.textSecondary,
+                  fontSize: 14,
+                ),
+                children: [
+                  WidgetSpan(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Handle sign up navigation
+                      },
+                      child: Text(
+                        'Sign up',
+                        style: TextStyle(
+                          color: AuraColors.tether,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hintText,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscureText = false,
+    IconData? prefixIcon,
+    Widget? suffixIcon,
+    void Function(String)? onSubmitted,
+  }) {
+    final aura = context.aura;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      autofocus: true,
+      style: TextStyle(color: aura.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: aura.textSecondary.withOpacity(0.5)),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: aura.textSecondary, size: 20)
+            : null,
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: isDark
+            ? Colors.white.withOpacity(0.05)
+            : const Color(0xFFF2E8E6).withOpacity(0.4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark
+                ? Colors.white.withOpacity(0.1)
+                : const Color(0xFFA67C82).withOpacity(0.25),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark
+                ? Colors.white.withOpacity(0.1)
+                : const Color(0xFFA67C82).withOpacity(0.25),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AuraColors.tether,
+            width: 1.5,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      onSubmitted: onSubmitted,
     );
   }
 
@@ -641,7 +954,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _errorMessage ?? 'Connection failed',
+                    _errorMessage ?? "We're having trouble connecting. Let's try again.",
                     style: TextStyle(color: context.aura.textPrimary),
                   ),
                 ),
@@ -679,6 +992,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 fontSize: 12,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Floating orb widget for background depth
+class _FloatingOrb extends StatelessWidget {
+  final Color color;
+  final double size;
+  final double opacity;
+  final double blurRadius;
+
+  const _FloatingOrb({
+    required this.color,
+    required this.size,
+    required this.opacity,
+    required this.blurRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withOpacity(opacity),
+            color.withOpacity(0),
+          ],
+          stops: const [0.0, 0.7],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(opacity * 0.5),
+            blurRadius: blurRadius,
+            spreadRadius: size * 0.1,
           ),
         ],
       ),

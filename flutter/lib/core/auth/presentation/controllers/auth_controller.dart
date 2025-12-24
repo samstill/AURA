@@ -141,6 +141,11 @@ class AuthController extends _$AuthController {
   /// Handle successful login
   Future<void> _onLoginSuccess() async {
     debugPrint('✅ Login successful!');
+    
+    // Mark user as logged in for offline access
+    final repo = await ref.read(authRepositoryProvider.future);
+    await repo.markLoggedIn();
+    
     state = const AsyncData(AuthState(status: AuthStatus.authenticated));
     
     // Notify the router's auth listener to trigger redirect

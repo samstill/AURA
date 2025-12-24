@@ -1,5 +1,5 @@
 """
-Project Aura - FastAPI Backend Entry Point
+Encresa AURA - FastAPI Backend Entry Point
 ==========================================
 
 The AI Secretary backend service with:
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     Shutdown: Clean up resources gracefully.
     """
     # Startup
-    logger.info("🚀 Project Aura starting up...")
+    logger.info("🚀 Encresa AURA starting up...")
     logger.info(f"   Environment: {settings.environment}")
     logger.info(f"   Debug: {settings.debug}")
     
@@ -79,13 +79,13 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("🛑 Project Aura shutting down...")
+    logger.info("🛑 Encresa AURA shutting down...")
     await database_service.disconnect()
 
 
 app = FastAPI(
-    title="Project Aura",
-    description="The World's Fastest AI Secretary",
+    title="Encresa AURA",
+    description="The World's Fastest AI Secretary by Encresa",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -160,7 +160,7 @@ async def readiness_check():
 async def root():
     """API root - basic info endpoint."""
     return {
-        "service": "Project Aura",
+        "service": "Encresa AURA",
         "version": "0.1.0",
         "docs": "/docs",
         "health": "/health",

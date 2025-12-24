@@ -7,12 +7,14 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/dashboard/presentation/screens/home_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../auth/presentation/screens/login_screen.dart';
 
 part 'app_router.g.dart';
 
 /// Route paths
 class AppRoutes {
+  static const String splash = '/splash';
   static const String login = '/login';
   static const String home = '/';
   static const String chat = '/chat';
@@ -25,13 +27,23 @@ class AuthChangeNotifier extends ChangeNotifier {
   static final instance = AuthChangeNotifier._();
   
   bool _isAuthenticated = false;
+  bool _splashComplete = false;
   
   bool get isAuthenticated => _isAuthenticated;
+  bool get splashComplete => _splashComplete;
   
   void setAuthenticated(bool value) {
     if (_isAuthenticated != value) {
       debugPrint('🔔 AuthChangeNotifier: isAuthenticated changed to $value');
       _isAuthenticated = value;
+      notifyListeners();
+    }
+  }
+  
+  void setSplashComplete(bool value) {
+    if (_splashComplete != value) {
+      debugPrint('🔔 AuthChangeNotifier: splashComplete changed to $value');
+      _splashComplete = value;
       notifyListeners();
     }
   }
@@ -51,28 +63,49 @@ GoRouter appRouter(AppRouterRef ref) {
   debugPrint('🧭 Creating GoRouter instance');
   
   _routerInstance = GoRouter(
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     refreshListenable: AuthChangeNotifier.instance,
     redirect: (context, state) {
       final isAuthenticated = AuthChangeNotifier.instance.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == AppRoutes.login;
+      final splashComplete = AuthChangeNotifier.instance.splashComplete;
+      final currentLocation = state.matchedLocation;
       
-      debugPrint('🧭 Router redirect: authenticated=$isAuthenticated, location=${state.matchedLocation}');
+      debugPrint('🧭 Router redirect: authenticated=$isAuthenticated, splash=$splashComplete, location=$currentLocation');
       
-      // Redirect to login if not authenticated
-      if (!isAuthenticated && !isLoggingIn) {
-        return AppRoutes.login;
+      // If splash not complete, stay on splash
+      if (!splashComplete && currentLocation != AppRoutes.splash) {
+        return AppRoutes.splash;
       }
       
-      // Redirect to home if already authenticated and on login page
-      if (isAuthenticated && isLoggingIn) {
-        return AppRoutes.home;
+      // After splash completes, redirect based on auth
+      if (splashComplete && currentLocation == AppRoutes.splash) {
+        return isAuthenticated ? AppRoutes.home : AppRoutes.login;
+      }
+      
+      // Normal auth redirects
+      if (splashComplete) {
+        if (!isAuthenticated && currentLocation != AppRoutes.login) {
+          return AppRoutes.login;
+        }
+        if (isAuthenticated && currentLocation == AppRoutes.login) {
+          return AppRoutes.home;
+        }
       }
       
       return null;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => SplashScreen(
+          duration: const Duration(seconds: 3),
+          onComplete: () {
+            AuthChangeNotifier.instance.setSplashComplete(true);
+          },
+        ),
+      ),
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
@@ -93,4 +126,5 @@ GoRouter appRouter(AppRouterRef ref) {
   
   return _routerInstance!;
 }
+
 

@@ -13,6 +13,7 @@ export 'theme/aura_typography.dart';
 export 'theme/app_theme.dart';
 export 'theme/theme_controller.dart';
 export 'theme/aura_background.dart';
+export 'theme/aura_animated_background.dart';
 
 // Motion
 export 'motion/motion.dart';
@@ -23,3 +24,4 @@ export 'atoms/aura_button.dart';
 export 'atoms/aura_icon.dart';
 export 'atoms/aura_jelly_button.dart';
 export 'atoms/aura_toggle.dart';
+export 'atoms/splash_screen_icon.dart';

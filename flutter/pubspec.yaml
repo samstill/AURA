@@ -1,5 +1,5 @@
-name: project_aura
-description: "Project Aura - The World's Fastest AI Secretary"
+name: encresa_aura
+description: "AURA - The World's Fastest AI Secretary by Encresa"
 publish_to: "none"
 version: 0.1.0+1
 
@@ -36,6 +36,8 @@ dependencies:
   google_fonts: ^6.1.0
   flutter_animate: ^4.5.0 # For "Jelly" and "Sacrifice" micro-interactions
   lucide_icons: ^0.257.0 # Clean geometric icons for glassmorphic aesthetic
+  flutter_svg: ^2.0.10 # For SVG logo rendering
+  webview_flutter: ^4.10.0 # For animated SVG rendering in splash screen
 
   # Utilities
   intl: ^0.19.0
@@ -53,3 +55,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/

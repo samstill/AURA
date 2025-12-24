@@ -1,11 +1,11 @@
 {
-    "name": "project_aura",
-    "short_name": "project_aura",
+    "name": "AURA",
+    "short_name": "AURA",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "AURA - The World's Fastest AI Secretary by Encresa",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

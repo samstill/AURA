@@ -59,6 +59,12 @@ class AuthRepository {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _expiresAtKey = 'expires_at';
+  static const _lastLoginKey = 'last_login_timestamp';
+  static const _isLoggedInKey = 'is_logged_in';
+  
+  /// Offline grace period - user can access dashboard without backend validation
+  /// for this duration after last successful login
+  static const Duration offlineGracePeriod = Duration(days: 7);
 
   AuthRepository({
     required this.client, 
@@ -70,16 +76,66 @@ class AuthRepository {
   static bool _flowInProgress = false;
   static Future<FlowResult>? _pendingFlow;
 
-  /// Check if the session is valid by calling the userinfo endpoint
+  /// Check if the session is valid - first checks local timestamp, then backend
   Future<bool> checkSession() async {
-    debugPrint('🔍 Verifying session with backend...');
+    debugPrint('🔍 Checking session validity...');
+    
+    // First check if we have a valid local session within grace period
+    final hasLocalSession = await _hasValidLocalSession();
+    if (hasLocalSession) {
+      debugPrint('✅ Valid local session found (within offline grace period)');
+      
+      // Try to validate with backend in background, but don't block
+      _validateSessionInBackground();
+      return true;
+    }
+    
+    // No valid local session - must validate with backend
+    return await _validateSessionWithBackend();
+  }
+  
+  /// Check if we have a valid local session within the offline grace period
+  Future<bool> _hasValidLocalSession() async {
     try {
-      // Intentionally using the authentik client but calling the user endpoint
-      // This validates if the session cookie is valid
+      final isLoggedIn = await storage.read(key: _isLoggedInKey);
+      if (isLoggedIn != 'true') {
+        debugPrint('⚠️ No local login flag found');
+        return false;
+      }
+      
+      final lastLoginStr = await storage.read(key: _lastLoginKey);
+      if (lastLoginStr == null) {
+        debugPrint('⚠️ No last login timestamp found');
+        return false;
+      }
+      
+      final lastLogin = DateTime.parse(lastLoginStr);
+      final now = DateTime.now();
+      final elapsed = now.difference(lastLogin);
+      
+      if (elapsed <= offlineGracePeriod) {
+        debugPrint('✅ Local session valid (${elapsed.inDays} days since login, grace period: ${offlineGracePeriod.inDays} days)');
+        return true;
+      }
+      
+      debugPrint('⚠️ Local session expired (${elapsed.inDays} days since login)');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error checking local session: $e');
+      return false;
+    }
+  }
+  
+  /// Validate session with backend (for online scenarios)
+  Future<bool> _validateSessionWithBackend() async {
+    debugPrint('🔍 Validating session with backend...');
+    try {
       final response = await client.get('/api/v3/core/users/me/');
       
       if (response.statusCode == 200) {
         debugPrint('✅ Session is valid: ${response.data['username']}');
+        // Update local session timestamp on successful validation
+        await _saveLocalSession();
         return true;
       }
       debugPrint('⚠️ Session check failed: ${response.statusCode}');
@@ -88,6 +144,37 @@ class AuthRepository {
       debugPrint('❌ Session check error: $e');
       return false;
     }
+  }
+  
+  /// Validate session in background (non-blocking)
+  Future<void> _validateSessionInBackground() async {
+    debugPrint('🔄 Background session validation...');
+    try {
+      final response = await client.get('/api/v3/core/users/me/');
+      if (response.statusCode == 200) {
+        debugPrint('✅ Background validation successful');
+        await _saveLocalSession();
+      } else {
+        debugPrint('⚠️ Background validation failed - session may be invalid');
+        // Don't clear local session here - let user continue with offline access
+      }
+    } catch (e) {
+      debugPrint('⚠️ Background validation error (offline?): $e');
+      // Don't clear local session - user can continue offline
+    }
+  }
+  
+  /// Save local session timestamp
+  Future<void> _saveLocalSession() async {
+    await storage.write(key: _isLoggedInKey, value: 'true');
+    await storage.write(key: _lastLoginKey, value: DateTime.now().toIso8601String());
+    debugPrint('💾 Local session saved');
+  }
+  
+  /// Mark user as logged in after successful authentication
+  Future<void> markLoggedIn() async {
+    await _saveLocalSession();
+    debugPrint('✅ User marked as logged in for offline access');
   }
 
   /// Reset flow state - call before starting a new flow when user wants to restart

@@ -17,6 +17,7 @@ class AuraGlass extends StatelessWidget {
   final BorderRadius? borderRadius;
   final VoidCallback? onTap;
   final bool enableBlur;
+  final bool enableGradientBorder;
 
   const AuraGlass({
     super.key,
@@ -27,35 +28,95 @@ class AuraGlass extends StatelessWidget {
     this.borderRadius,
     this.onTap,
     this.enableBlur = true,
+    this.enableGradientBorder = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final aura = context.aura;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final radius = borderRadius ?? BorderRadius.circular(24);
 
+    // Enhanced glass container with liquid transparency
     Widget content = Container(
       width: width,
       height: height,
-      padding: padding,
       decoration: BoxDecoration(
-        color: aura.bgSecondary.withOpacity(aura.glassOpacity),
+        // More transparent background for glass effect
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  Colors.white.withOpacity(0.08),
+                  Colors.white.withOpacity(0.02),
+                ]
+              : [
+                  Colors.white.withOpacity(0.7),
+                  Colors.white.withOpacity(0.4),
+                ],
+        ),
         borderRadius: radius,
         border: Border.all(
-          color: aura.glassBorder,
-          width: 1,
+          color: isDark
+              ? Colors.white.withOpacity(0.15)
+              : Colors.white.withOpacity(0.8),
+          width: 1.5,
         ),
         boxShadow: [
+          // Outer glow shadow
           BoxShadow(
-            color: aura.glassShadow,
-            blurRadius: 30,
-            offset: const Offset(0, 10),
+            color: isDark
+                ? Colors.black.withOpacity(0.5)
+                : aura.glassShadow.withOpacity(0.1),
+            blurRadius: 40,
+            offset: const Offset(0, 15),
             spreadRadius: -5,
+          ),
+          // Inner subtle shadow for depth
+          BoxShadow(
+            color: isDark
+                ? AuraColors.tether.withOpacity(0.05)
+                : AuraColors.heartbeat.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+            spreadRadius: -2,
           ),
         ],
       ),
-      child: child,
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
     );
+
+    // Add gradient border overlay for premium effect
+    if (enableGradientBorder) {
+      content = Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AuraColors.tether.withOpacity(0.3),
+              AuraColors.heartbeat.withOpacity(0.2),
+              AuraColors.halo.withOpacity(0.3),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(1.5),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black : aura.bgPrimary,
+              borderRadius: BorderRadius.circular(22.5),
+            ),
+            child: content,
+          ),
+        ),
+      );
+    }
 
     // Wrap with InkWell if tappable
     if (onTap != null) {
@@ -71,14 +132,14 @@ class AuraGlass extends StatelessWidget {
       );
     }
 
-    // Apply blur effect
+    // Apply enhanced blur effect for liquid glass look
     if (enableBlur) {
       return ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
           filter: ImageFilter.blur(
-            sigmaX: aura.blurIntensity,
-            sigmaY: aura.blurIntensity,
+            sigmaX: isDark ? 15.0 : 20.0,
+            sigmaY: isDark ? 15.0 : 20.0,
           ),
           child: content,
         ),

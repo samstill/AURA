@@ -263,7 +263,13 @@ class FlowError {
     );
   }
 
+  /// Returns a user-friendly, seductive error message
   String get displayError {
+    final rawError = _getRawError();
+    return _beautifyError(rawError);
+  }
+
+  String _getRawError() {
     if (nonFieldErrors != null && nonFieldErrors!.isNotEmpty) {
       return nonFieldErrors!;
     }
@@ -273,5 +279,111 @@ class FlowError {
           .join('\n');
     }
     return 'Unknown error';
+  }
+
+  /// Transform technical errors into seductive, user-friendly messages
+  String _beautifyError(String error) {
+    final lowerError = error.toLowerCase();
+    
+    // Connection / Network errors
+    if (lowerError.contains('connection refused') ||
+        lowerError.contains('socketexception') ||
+        lowerError.contains('failed host lookup') ||
+        lowerError.contains('network is unreachable') ||
+        lowerError.contains('connection reset')) {
+      return "We can't reach our servers right now. Check your connection and we'll try again together.";
+    }
+    
+    if (lowerError.contains('timeout') || lowerError.contains('timed out')) {
+      return "The connection is taking longer than expected. Let's give it another moment...";
+    }
+    
+    if (lowerError.contains('connection closed') ||
+        lowerError.contains('connection was reset') ||
+        lowerError.contains('broken pipe')) {
+      return "We lost the connection briefly. Don't worry, let's reconnect.";
+    }
+    
+    // SSL / Certificate errors
+    if (lowerError.contains('certificate') ||
+        lowerError.contains('ssl') ||
+        lowerError.contains('handshake')) {
+      return "There's a security hiccup. Make sure you're on a trusted network.";
+    }
+    
+    // Server errors
+    if (lowerError.contains('500') || lowerError.contains('internal server')) {
+      return "Our servers are having a moment. Please try again in a bit.";
+    }
+    
+    if (lowerError.contains('503') || lowerError.contains('service unavailable')) {
+      return "We're briefly away for maintenance. Be right back!";
+    }
+    
+    if (lowerError.contains('502') || lowerError.contains('bad gateway')) {
+      return "We're experiencing some traffic. Give us a second to clear the path.";
+    }
+    
+    // Auth specific errors
+    if (lowerError.contains('invalid password') ||
+        lowerError.contains('incorrect password') ||
+        lowerError.contains('wrong password')) {
+      return "That password doesn't match. Take your time and try again.";
+    }
+    
+    if (lowerError.contains('user not found') ||
+        lowerError.contains('no user') ||
+        lowerError.contains('invalid username') ||
+        lowerError.contains('doesn\'t exist')) {
+      return "We couldn't find that account. Double-check and try again?";
+    }
+    
+    if (lowerError.contains('too many attempts') ||
+        lowerError.contains('rate limit') ||
+        lowerError.contains('locked')) {
+      return "Too many attempts. Let's take a breath and try again shortly.";
+    }
+    
+    if (lowerError.contains('expired') || lowerError.contains('session')) {
+      return "Your session has expired. Let's start fresh.";
+    }
+    
+    if (lowerError.contains('access denied') ||
+        lowerError.contains('forbidden') ||
+        lowerError.contains('not authorized')) {
+      return "Access wasn't granted. Check your permissions or reach out for help.";
+    }
+    
+    // Empty / Invalid responses
+    if (lowerError.contains('empty response') ||
+        lowerError.contains('invalid response') ||
+        lowerError.contains('server returned html')) {
+      return "Something unexpected happened. Let's try that again.";
+    }
+    
+    // DNS / Host errors
+    if (lowerError.contains('dns') ||
+        lowerError.contains('resolve') ||
+        lowerError.contains('host')) {
+      return "We can't find the server. Check your internet connection.";
+    }
+    
+    // Generic DIO errors
+    if (lowerError.contains('dioexception') ||
+        lowerError.contains('dioerror')) {
+      if (lowerError.contains('cancel')) {
+        return "The request was cancelled. Ready when you are.";
+      }
+      return "A connection issue occurred. Let's try once more.";
+    }
+    
+    // If no pattern matches, return a friendly version of short errors
+    // or a generic message for long technical ones
+    if (error.length > 100 || error.contains('Exception') || error.contains('Error:')) {
+      return "Something went wrong on our end. Please try again.";
+    }
+    
+    // Return the original if it's already human-readable
+    return error;
   }
 }
