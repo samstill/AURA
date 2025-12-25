@@ -1,6 +1,6 @@
-<![CDATA[<div align="center">
+<div align="center">
 
-<img src="assets/logo.png" alt="AURA Logo" width="200"/>
+<img src="Icons/readme_200.png" alt="AURA Logo" width="200"/>
 
 # 🌟 AURA
 
@@ -37,7 +37,7 @@
 |-------|------------|----------|
 | **Compute** | Kubernetes (Minikube) | Local development via dev.sh or Skaffold |
 | **Backend** | Python (FastAPI) | Hot-reloads with uvicorn |
-| **AI Engine** | Google Gemini | 1.5 Flash / 2.0 Flash for reasoning |
+| **AI Engine** | Google Gemini | 2.0 Flash / 2.0 Flash Thinking |
 | **MCP Server** | JSON-RPC 2.0 | Tool execution microservice |
 | **Frontend** | Flutter | Cross-platform mobile |
 | **Auth** | Authentik | Local OIDC Provider |
@@ -65,34 +65,18 @@ AURA/
 │   │   ├── orchestrator_service.py  # Streaming orchestrator
 │   │   ├── llm_service.py      # Gemini LLM integration
 │   │   ├── router_service.py   # Semantic message routing
-│   │   ├── google_calendar_service.py  # Google Calendar OAuth & API
-│   │   ├── calendar_db_service.py  # Calendar persistence layer
+│   │   ├── semantic_cache_service.py  # Response caching
+│   │   ├── staller_service.py  # Quick acknowledgments
+│   │   ├── google_calendar_service.py  # Google Calendar OAuth
 │   │   ├── calendar_tools.py   # Calendar agent tools
-│   │   ├── tts_service.py      # Text-to-speech (Kokoro/ElevenLabs)
-│   │   ├── mcp_client.py       # MCP protocol client
-│   │   ├── tool_manager.py     # Tool hydration & management
-│   │   ├── database_service.py # Supabase/PostgreSQL client
-│   │   ├── qdrant_service.py   # Vector memory service
-│   │   ├── redis_service.py    # Redis cache client
-│   │   └── authentik_service.py # OIDC authentication
-│   ├── mcp_server/             # MCP Server (JSON-RPC 2.0)
-│   │   ├── main.py             # MCP server entry point
-│   │   ├── sdk.py              # MCP SDK utilities
-│   │   └── tools/              # Built-in tools
-│   └── dependencies/           # FastAPI dependencies
+│   │   ├── tts_service.py      # Text-to-speech
+│   │   └── ...                 # Other services
+│   └── mcp_server/             # MCP Server (JSON-RPC 2.0)
 │
 ├── flutter/                    # Flutter Mobile App
 │   ├── lib/
-│   │   ├── core/               # Core modules
-│   │   │   ├── auth/           # Authentication (Authentik OIDC)
-│   │   │   ├── api/            # API client
-│   │   │   ├── design_system/  # UI components (Glassmorphism)
-│   │   │   ├── router/         # GoRouter navigation
-│   │   │   └── theme/          # App theming
-│   │   ├── features/           # Feature modules
-│   │   │   ├── chat/           # Chat interface
-│   │   │   ├── dashboard/      # Home dashboard
-│   │   │   └── splash/         # Splash screen
+│   │   ├── core/               # Core modules (auth, api, design_system)
+│   │   ├── features/           # Feature modules (chat, dashboard, splash)
 │   │   └── main.dart           # App entry point
 │   ├── android/                # Android native
 │   ├── ios/                    # iOS native
@@ -104,27 +88,9 @@ AURA/
 │   └── encresa_pub/            # Dart SDK (pub.dev)
 │
 ├── k8s/                        # Kubernetes Manifests
-│   ├── deployment.yaml         # Backend deployment
-│   ├── service.yaml            # Service definitions
-│   ├── ingress.yaml            # Ingress configuration
-│   ├── secrets.yaml            # Secret templates
-│   ├── tts-deployment.yaml     # TTS worker deployment
-│   ├── auth/                   # Authentik IDP manifests
-│   └── mcp/                    # MCP server manifests
-│
 ├── scripts/                    # Automation scripts
-│   ├── setup-cluster.sh        # Cluster initialization
-│   ├── deploy-authentik.sh     # Authentik deployment
-│   └── test_voice_backend.py   # Voice API tests
-│
 ├── docs/                       # Documentation
-│   ├── AUTHENTIK_SETUP.md      # Authentik IDP setup guide
-│   ├── DESIGN_SYSTEM.md        # Flutter design system docs
-│   ├── FLUTTER_NATIVE_SETUP.md # Flutter native setup
-│   └── dev_tts_worker.md       # Kokoro TTS worker guide
-│
 ├── dev.sh                      # 🚀 One-command dev startup
-├── docker-compose.yaml         # Local PostgreSQL
 ├── Dockerfile                  # Multi-stage backend image
 └── skaffold.yaml               # K8s development loop
 ```
@@ -218,22 +184,7 @@ dart run build_runner build
 
 # Run app
 flutter run
-
-# Run with verbose logging
-flutter run --verbose
 ```
-
----
-
-## 🔊 Voice/TTS Setup
-
-AURA supports multiple TTS backends:
-
-### Option 1: ElevenLabs (Production)
-Set `ELEVENLABS_API_KEY` in your `.env` file.
-
-### Option 2: Kokoro TTS (Free, High Quality)
-See [docs/dev_tts_worker.md](docs/dev_tts_worker.md) for Colab setup.
 
 ---
 
@@ -243,13 +194,11 @@ See [docs/dev_tts_worker.md](docs/dev_tts_worker.md) for Colab setup.
 
 ```bash
 # Required
-GEMINI_API_KEY=your-gemini-key
-SUPABASE_URL=your-supabase-url
-SUPABASE_KEY=your-supabase-key
+GOOGLE_API_KEY=your-gemini-key
 
 # Google Calendar (OAuth)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_CALENDAR_CLIENT_ID=your-google-client-id
+GOOGLE_CALENDAR_CLIENT_SECRET=your-google-client-secret
 
 # Optional
 ELEVENLABS_API_KEY=your-key     # For real TTS
@@ -258,14 +207,7 @@ REDIS_URL=your-redis-url
 QDRANT_URL=your-qdrant-url
 ```
 
-### Kubernetes (Secrets)
-
-```bash
-kubectl create secret generic aura-secrets \
-  --from-literal=GEMINI_API_KEY=your-key \
-  --from-literal=SUPABASE_URL=your-url \
-  --from-literal=SUPABASE_KEY=your-key
-```
+See [.env.example](.env.example) for full configuration options.
 
 ---
 
@@ -277,19 +219,8 @@ kubectl create secret generic aura-secrets \
 | `POST /api/v1/voice/synthesize` | Text-to-speech synthesis |
 | `GET /api/v1/auth/status` | Authentication status |
 | `GET /api/v1/tools` | List available tools |
-| `POST /api/v1/tools/{id}/install` | Install a tool for user |
 | `GET /api/v1/calendar/connect` | Initiate Google Calendar OAuth |
-| `GET /api/v1/calendar/status` | Check calendar connection |
 | `GET /api/v1/calendar/events` | Get calendar events |
-
----
-
-## 📋 Critical Rules
-
-1. **RAM Discipline** — Backend limited to 512MB
-2. **No Hardcoded Secrets** — Use `.env` or K8s secrets
-3. **Modular Structure** — Backend in `/src`, Frontend in `/flutter`
-4. **MCP Protocol** — All tools use JSON-RPC 2.0 via MCP
 
 ---
 
@@ -301,8 +232,8 @@ kubectl create secret generic aura-secrets \
 - [x] Voice/TTS capabilities (Kokoro + ElevenLabs)
 - [x] Gemini LLM integration
 - [x] Semantic message routing
+- [x] Semantic caching service
 - [x] MCP Server & Tool execution
-- [x] Agentic Skill Store API
 - [x] Google Calendar integration
 - [ ] Vector memory with Qdrant
 - [ ] Advanced ReAct reasoning loop
@@ -313,13 +244,12 @@ kubectl create secret generic aura-secrets \
 
 ## 📄 License
 
-**Proprietary** — All Rights Reserved
+**Proprietary** — All Rights Reserved © Encresa
 
 ---
 
 <div align="center">
 
-Made with ❤️ by the AURA Team
+Made with ❤️ by the AURA Team at **Encresa**
 
 </div>
-]]>
