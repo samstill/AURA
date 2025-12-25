@@ -326,10 +326,16 @@ class AgentService:
         """
         last_error = None
         
-        # Get current time for context
-        from datetime import datetime, timezone
-        current_time = datetime.now(timezone.utc)
-        local_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+        # Get current time for context - Convert to IST (UTC+5:30)
+        from datetime import datetime, timezone, timedelta
+        utc_now = datetime.now(timezone.utc)
+        ist_offset = timedelta(hours=5, minutes=30)
+        ist_now = utc_now + ist_offset
+        
+        # Format for clarity
+        ist_time_str = ist_now.strftime("%Y-%m-%d %H:%M IST")
+        ist_date_str = ist_now.strftime("%A, %B %d, %Y")
+        tomorrow = (ist_now + timedelta(days=1)).strftime("%A, %B %d, %Y")
         
         # Build autonomy-specific instructions FIRST
         autonomy_level = settings.agent_autonomy.lower()
@@ -351,9 +357,15 @@ Always explain what you plan to do and ask for confirmation before modifying any
         # Anti-hallucination prompt for calendar/secretarial actions
         anti_hallucination = f"""
 
-CURRENT TIME: {local_time_str}
-Today is {current_time.strftime("%A, %B %d, %Y")}.
-Use this time context for all calendar operations (e.g., "today", "tomorrow", "this week").
+CURRENT DATE & TIME (User's timezone - IST/India):
+- Right now: {ist_time_str}
+- TODAY is: {ist_date_str}
+- TOMORROW is: {tomorrow}
+
+CRITICAL: When user says "today", use {ist_now.strftime("%Y-%m-%d")}.
+When user says "tomorrow", use {(ist_now + timedelta(days=1)).strftime("%Y-%m-%d")}.
+Do NOT schedule things in the past. If it's night (after 9pm), focus on tomorrow's schedule.
+Use this time context for all calendar operations.
 
 SCHEDULING INTELLIGENCE (Common Sense Rules):
 1. BUFFER TIME: Always leave 15-30 min between events for:

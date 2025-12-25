@@ -894,6 +894,274 @@
             outline: none;
             border-color: var(--accent);
         }
+
+        /* =====================================================================
+           NOTIFICATION PANEL STYLES
+           ===================================================================== */
+        .notification-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+
+        .notification-btn:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pop 0.3s ease;
+        }
+
+        @keyframes pop {
+            0% {
+                transform: scale(0);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .notification-panel {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: 360px;
+            max-height: 400px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            z-index: 1000;
+            display: none;
+        }
+
+        .notification-panel.open {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification-panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-panel-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .clear-notifications {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .clear-notifications:hover {
+            color: var(--error);
+        }
+
+        .notification-list {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .notification-item:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .notification-item.unread {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .notification-item-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-priority {
+            font-size: 1rem;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex: 1;
+        }
+
+        .notification-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .notification-summary {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .notification-empty {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: slideInRight 0.3s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.urgent {
+            border-left-color: #ef4444;
+        }
+
+        .toast.medium {
+            border-left-color: #f59e0b;
+        }
+
+        .toast.low {
+            border-left-color: #10b981;
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex: 1;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .toast-body {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .pending-task-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .pending-task-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--accent);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -906,6 +1174,22 @@
             <span>DEV MODE</span>
         </div>
         <div class="header-right">
+            <!-- Notification Bell -->
+            <div style="position: relative;">
+                <button class="notification-btn" id="notificationBtn" onclick="toggleNotificationPanel()">
+                    🔔
+                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                </button>
+                <div class="notification-panel" id="notificationPanel">
+                    <div class="notification-panel-header">
+                        <h3>🔔 Notifications</h3>
+                        <button class="clear-notifications" onclick="clearNotifications()">Clear all</button>
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                        <div class="notification-empty">No notifications yet</div>
+                    </div>
+                </div>
+            </div>
             <div class="tab-toggle">
                 <button class="tab-btn active" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
                 <button class="tab-btn" id="tabVoice" onclick="switchTab('voice')">🎤 Voice</button>
@@ -1201,8 +1485,18 @@
                     scrollToBottom();
                 }
 
+                // Detect and track background task IDs
+                const taskMatch = fullText.match(/\[Task ID: ([a-f0-9-]+)/);
+                if (taskMatch) {
+                    const taskId = taskMatch[1];
+                    console.log('🔄 Detected background task:', taskId);
+                    // Get the original query (before context injection)
+                    const originalQuery = text;
+                    trackBackgroundTask(taskId, originalQuery);
+                }
+
                 // Store assistant response in history (cleaned)
-                const cleanResponse = fullText.replace(/\|\|MODEL:.*?\|\|/g, '').trim();
+                const cleanResponse = fullText.replace(/\|\|MODEL:.*?\|\|/g, '').replace(/\[Task ID:.*?\]/g, '').trim();
                 conversationHistory.push({ role: 'assistant', content: cleanResponse });
 
             } catch (error) {
@@ -1614,6 +1908,285 @@
 
         // Check calendar status on load
         checkCalendarStatus();
+
+        // =========================================================================
+        // NOTIFICATION SYSTEM FOR BACKGROUND TASKS
+        // =========================================================================
+
+        let notifications = [];
+        let pendingTasks = {};
+        const notificationPanel = document.getElementById('notificationPanel');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationList = document.getElementById('notificationList');
+
+        function toggleNotificationPanel() {
+            notificationPanel.classList.toggle('open');
+            // Close when clicking outside
+            if (notificationPanel.classList.contains('open')) {
+                setTimeout(() => {
+                    document.addEventListener('click', closeNotificationOnOutsideClick);
+                }, 0);
+            }
+        }
+
+        function closeNotificationOnOutsideClick(e) {
+            if (!e.target.closest('.notification-panel') && !e.target.closest('.notification-btn')) {
+                notificationPanel.classList.remove('open');
+                document.removeEventListener('click', closeNotificationOnOutsideClick);
+            }
+        }
+
+        function addNotification(notification) {
+            notifications.unshift(notification);
+            updateNotificationUI();
+            showToast(notification);
+        }
+
+        function updateNotificationUI() {
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            // Update badge
+            if (unreadCount > 0) {
+                notificationBadge.textContent = unreadCount;
+                notificationBadge.style.display = 'flex';
+            } else {
+                notificationBadge.style.display = 'none';
+            }
+
+            // Update list
+            if (notifications.length === 0) {
+                notificationList.innerHTML = '<div class="notification-empty">No notifications yet</div>';
+                return;
+            }
+
+            notificationList.innerHTML = notifications.map((n, i) => `
+                <div class="notification-item ${n.read ? '' : 'unread'}" onclick="viewNotification(${i})">
+                    <div class="notification-item-header">
+                        <span class="notification-priority">${n.priority === 'urgent' ? '🔴' : n.priority === 'medium' ? '🟡' : '🟢'}</span>
+                        <span class="notification-title">${escapeHtml(n.title)}</span>
+                        <span class="notification-time">${formatNotificationTime(n.createdAt)}</span>
+                    </div>
+                    <div class="notification-summary">${escapeHtml(n.summary)}</div>
+                </div>
+            `).join('');
+        }
+
+        function viewNotification(index) {
+            const n = notifications[index];
+            n.read = true;
+            updateNotificationUI();
+
+            // Show full result in chat
+            const chatMessages = document.getElementById('chatMessages');
+            const emptyState = document.getElementById('emptyState');
+            if (emptyState) emptyState.style.display = 'none';
+
+            const msg = document.createElement('div');
+            msg.className = 'message assistant';
+            msg.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <span>${n.priority === 'urgent' ? '🔴' : n.priority === 'medium' ? '🟡' : '🟢'}</span>
+                    <strong style="color: var(--accent-light);">Background Task Result</strong>
+                </div>
+                <div style="margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                    Original query: ${escapeHtml(n.originalQuery)}
+                </div>
+                <div>${formatText(n.fullResult)}</div>
+            `;
+            chatMessages.appendChild(msg);
+            scrollToBottom();
+
+            // Close panel and switch to chat
+            notificationPanel.classList.remove('open');
+            switchTab('chat');
+        }
+
+        function clearNotifications() {
+            notifications = [];
+            updateNotificationUI();
+        }
+
+        function showToast(notification) {
+            let container = document.querySelector('.toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${notification.priority}`;
+            toast.innerHTML = `
+                <div class="toast-header">
+                    <span>${notification.priority === 'urgent' ? '🔴' : notification.priority === 'medium' ? '🟡' : '🟢'}</span>
+                    <span class="toast-title">${escapeHtml(notification.title)}</span>
+                    <button class="toast-close" onclick="this.parentElement.parentElement.remove()">&times;</button>
+                </div>
+                <div class="toast-body">${escapeHtml(notification.summary)}</div>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 8000);
+        }
+
+        function formatNotificationTime(date) {
+            const d = new Date(date);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Track background task IDs from stream responses
+        function trackBackgroundTask(taskId, query) {
+            pendingTasks[taskId] = {
+                query: query,
+                startTime: Date.now()
+            };
+
+            // Show pending task banner in chat
+            const banner = document.createElement('div');
+            banner.className = 'pending-task-banner';
+            banner.id = `pending-${taskId}`;
+            banner.innerHTML = `
+                <div class="pending-task-spinner"></div>
+                <span>Processing in background: "${escapeHtml(query.substring(0, 50))}..."</span>
+                <span style="margin-left: auto; color: var(--accent-light);">${taskId}</span>
+            `;
+            chatMessages.appendChild(banner);
+            scrollToBottom();
+
+            // Start polling for result
+            pollBackgroundTask(taskId);
+        }
+
+        async function pollBackgroundTask(taskId) {
+            // Poll the real API endpoint for task status
+            console.log(`🔄 Polling for task ${taskId}...`);
+
+            const pollInterval = 2000; // Poll every 2 seconds
+            const maxPolls = 60; // Max 2 minutes of polling
+            let pollCount = 0;
+
+            const poll = async () => {
+                pollCount++;
+
+                try {
+                    const response = await fetch(`${API_URL}/api/v1/chat/tasks/${taskId}/status`);
+
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.log(`Task ${taskId} not found yet, continuing to poll...`);
+                        } else {
+                            console.error(`Error polling task: ${response.status}`);
+                        }
+
+                        if (pollCount < maxPolls) {
+                            setTimeout(poll, pollInterval);
+                        } else {
+                            handlePollTimeout(taskId);
+                        }
+                        return;
+                    }
+
+                    const data = await response.json();
+                    console.log(`📦 Task ${taskId} status:`, data.status);
+
+                    if (data.status === 'completed' && data.result) {
+                        // Task completed with result!
+                        const task = pendingTasks[taskId];
+
+                        // Remove pending banner
+                        const banner = document.getElementById(`pending-${taskId}`);
+                        if (banner) banner.remove();
+
+                        // Add notification with REAL result from agent
+                        addNotification({
+                            id: taskId,
+                            priority: data.result.priority || 'medium',
+                            title: data.result.title || 'Background Task Complete',
+                            summary: data.result.summary || 'Your request has been processed.',
+                            fullResult: data.result.full_result || 'No result available.',
+                            originalQuery: data.result.original_query || (task ? task.query : 'Unknown'),
+                            createdAt: new Date(),
+                            read: false
+                        });
+
+                        delete pendingTasks[taskId];
+                        console.log(`✅ Task ${taskId} completed!`);
+
+                    } else if (data.status === 'failed') {
+                        handleTaskFailed(taskId, data);
+                    } else {
+                        // Still running, continue polling
+                        if (pollCount < maxPolls) {
+                            setTimeout(poll, pollInterval);
+                        } else {
+                            handlePollTimeout(taskId);
+                        }
+                    }
+
+                } catch (error) {
+                    console.error(`Poll error for ${taskId}:`, error);
+                    if (pollCount < maxPolls) {
+                        setTimeout(poll, pollInterval);
+                    } else {
+                        handlePollTimeout(taskId);
+                    }
+                }
+            };
+
+            // Start polling
+            poll();
+        }
+
+        function handlePollTimeout(taskId) {
+            const banner = document.getElementById(`pending-${taskId}`);
+            if (banner) {
+                banner.innerHTML = `
+                    <span style="color: var(--warning);">⚠️</span>
+                    <span>Task is taking longer than expected. Check notifications later.</span>
+                `;
+            }
+            delete pendingTasks[taskId];
+        }
+
+        function handleTaskFailed(taskId, data) {
+            const banner = document.getElementById(`pending-${taskId}`);
+            if (banner) banner.remove();
+
+            addNotification({
+                id: taskId,
+                priority: 'urgent',
+                title: 'Task Failed',
+                summary: 'There was an error processing your request.',
+                fullResult: data.error || 'Unknown error occurred.',
+                originalQuery: pendingTasks[taskId]?.query || 'Unknown',
+                createdAt: new Date(),
+                read: false
+            });
+
+            delete pendingTasks[taskId];
+        }
+
+        // Parse Task ID from stream response
+        function parseTaskIdFromStream(text) {
+            const match = text.match(/\[Task ID: ([a-f0-9-]+)/);
+            if (match) {
+                return match[1];
+            }
+            return null;
+        }
+
+
     </script>
 </body>
 

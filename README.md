@@ -21,6 +21,7 @@
 ## ✨ Features
 
 - 🧠 **Hybrid AI Brain** — Split-second reflexes with deep reasoning via Gemini LLM
+- 📅 **Google Calendar Integration** — OAuth connect, event CRUD, smart scheduling
 - 🛠️ **Agentic Skill Store** — Dynamically load and execute tools via MCP protocol
 - 🎤 **Voice Interface** — Natural voice interaction with Kokoro/ElevenLabs TTS
 - 💬 **Intelligent Chat** — Context-aware conversations with semantic routing
@@ -57,12 +58,16 @@ AURA/
 │   │   ├── auth.py             # Authentication routes
 │   │   ├── chat.py             # Chat API
 │   │   ├── voice.py            # Voice/TTS API
+│   │   ├── calendar.py         # Google Calendar API
 │   │   └── tools.py            # Skill Store API
 │   ├── services/               # Business logic
 │   │   ├── agent_service.py    # ReAct agent with tool calling
 │   │   ├── orchestrator_service.py  # Streaming orchestrator
 │   │   ├── llm_service.py      # Gemini LLM integration
 │   │   ├── router_service.py   # Semantic message routing
+│   │   ├── google_calendar_service.py  # Google Calendar OAuth & API
+│   │   ├── calendar_db_service.py  # Calendar persistence layer
+│   │   ├── calendar_tools.py   # Calendar agent tools
 │   │   ├── tts_service.py      # Text-to-speech (Kokoro/ElevenLabs)
 │   │   ├── mcp_client.py       # MCP protocol client
 │   │   ├── tool_manager.py     # Tool hydration & management
@@ -86,7 +91,8 @@ AURA/
 │   │   │   └── theme/          # App theming
 │   │   ├── features/           # Feature modules
 │   │   │   ├── chat/           # Chat interface
-│   │   │   └── dashboard/      # Home dashboard
+│   │   │   ├── dashboard/      # Home dashboard
+│   │   │   └── splash/         # Splash screen
 │   │   └── main.dart           # App entry point
 │   ├── android/                # Android native
 │   ├── ios/                    # iOS native
@@ -241,6 +247,10 @@ GEMINI_API_KEY=your-gemini-key
 SUPABASE_URL=your-supabase-url
 SUPABASE_KEY=your-supabase-key
 
+# Google Calendar (OAuth)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
 # Optional
 ELEVENLABS_API_KEY=your-key     # For real TTS
 TTS_WORKER_URL=https://...       # For Kokoro TTS
@@ -268,6 +278,9 @@ kubectl create secret generic aura-secrets \
 | `GET /api/v1/auth/status` | Authentication status |
 | `GET /api/v1/tools` | List available tools |
 | `POST /api/v1/tools/{id}/install` | Install a tool for user |
+| `GET /api/v1/calendar/connect` | Initiate Google Calendar OAuth |
+| `GET /api/v1/calendar/status` | Check calendar connection |
+| `GET /api/v1/calendar/events` | Get calendar events |
 
 ---
 
@@ -290,6 +303,7 @@ kubectl create secret generic aura-secrets \
 - [x] Semantic message routing
 - [x] MCP Server & Tool execution
 - [x] Agentic Skill Store API
+- [x] Google Calendar integration
 - [ ] Vector memory with Qdrant
 - [ ] Advanced ReAct reasoning loop
 - [ ] Multi-modal input support

@@ -93,35 +93,40 @@ class Settings(BaseSettings):
     
     # -------------------------------------------------------------------------
     # Google Gemini Configuration
+    # Override in .env: GOOGLE_API_KEY, GEMINI_FAST_MODEL, GEMINI_SMART_MODEL, EMBEDDING_MODEL
     # -------------------------------------------------------------------------
     google_api_key: Optional[str] = None
-    gemini_fast_model: str = "models/gemini-2.5-flash"
-    gemini_smart_model: str = "models/gemini-2.5-flash"
+    gemini_fast_model: str = "gemini-2.0-flash"           # Latest Flash model
+    gemini_smart_model: str = "gemini-2.0-flash-thinking-exp"  # Smart/reasoning model
+    embedding_model: str = "text-embedding-004"           # Latest embedding model
     
     
     # -------------------------------------------------------------------------
     # Multi-Provider Configuration (Groq & OpenRouter)
+    # Override in .env: GROQ_API_KEY, GROQ_FAST_MODEL, GROQ_SMART_MODEL, etc.
     # -------------------------------------------------------------------------
     groq_api_key: Optional[str] = None
-    groq_fast_model: str = "llama-3.1-8b-instant"
-    groq_smart_model: str = "llama-3.3-70b-versatile"
+    groq_fast_model: str = "llama-3.3-70b-versatile"      # Latest Groq Llama
+    groq_smart_model: str = "llama-3.3-70b-versatile"     # Best for complex tasks
     
     openrouter_api_key: Optional[str] = None
-    openrouter_fast_model: str = "meta-llama/llama-3-8b-instruct:free"
-    openrouter_smart_model: str = "deepseek/deepseek-r1"
+    openrouter_fast_model: str = "meta-llama/llama-3.3-70b-instruct"
+    openrouter_smart_model: str = "deepseek/deepseek-r1"  # Reasoning model
     
     # -------------------------------------------------------------------------
     # OpenAI Configuration (Native API - best tool calling)
+    # Override in .env: OPENAI_API_KEY, OPENAI_FAST_MODEL, OPENAI_SMART_MODEL, STALLER_MODEL
     # -------------------------------------------------------------------------
-    # openai_api_key is already defined above
-    openai_fast_model: str = "gpt-4o-mini"  # Fast, cheap, excellent tool calling
-    openai_smart_model: str = "gpt-4o"      # Smart, great tool calling
+    openai_fast_model: str = "gpt-4.1-mini"               # Latest fast model
+    openai_smart_model: str = "gpt-4.1"                   # Latest smart model
+    staller_model: str = "gpt-4.1-nano"                   # Ultra-fast for staller
     
     # -------------------------------------------------------------------------
     # DeepSeek Configuration (Native API)
+    # Override in .env: DEEPSEEK_API_KEY, DEEPSEEK_MODEL
     # -------------------------------------------------------------------------
     deepseek_api_key: Optional[str] = None
-    deepseek_model: str = "deepseek-chat"  # DeepSeek V3
+    deepseek_model: str = "deepseek-chat"                 # DeepSeek V3
     
     # -------------------------------------------------------------------------
     # Agent Autonomy Configuration
@@ -131,6 +136,20 @@ class Settings(BaseSettings):
     # minimal = ask before every write action
     agent_autonomy: str = "full"
     agent_max_iterations: int = 10  # max tool call turns per request
+    
+    # -------------------------------------------------------------------------
+    # Aura Routing Algorithm Configuration
+    # -------------------------------------------------------------------------
+    # Hard timeout before checking agent status (seconds)
+    aura_hard_timeout: float = 1.0
+    # Extra grace period if agent has started generating (seconds)
+    aura_grace_period: float = 0.5
+    # Maximum background processing time before giving up (seconds)
+    aura_max_async_wait: float = 30.0
+    # Semantic cache TTL in seconds
+    aura_cache_ttl: int = 3600
+    # Minimum similarity score for cache hit (0.0 - 1.0)
+    aura_cache_similarity_threshold: float = 0.95
     
     # -------------------------------------------------------------------------
     # Integrations (OAuth credentials)

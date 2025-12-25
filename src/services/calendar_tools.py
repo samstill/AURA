@@ -382,10 +382,10 @@ async def get_detailed_schedule(
                 "title": event["title"],
                 "start": event["start"],
                 "end": event["end"],
-                "location": event["location"] if event["location"] else None,
-                "all_day": event["all_day"],
-                "calendar": event["source_calendar"],
-                "attendees_count": len(event.get("attendees", []))
+                "location": event.get("location"),
+                "all_day": event.get("all_day", False),
+                "calendar": event.get("calendar", "Unknown"),
+                "is_recurring": event.get("is_recurring", False)
             })
         
         return json.dumps({
@@ -582,10 +582,10 @@ async def create_calendar_event(
             conflict_details = []
             for event in conflicts:
                 conflict_details.append({
-                    "title": event["title"],
-                    "start": event["start"],
-                    "end": event["end"],
-                    "calendar": event.get("source_calendar", "Unknown"),
+                    "title": event.get("title", "No Title"),
+                    "start": event.get("start"),
+                    "end": event.get("end"),
+                    "calendar": event.get("calendar", "Unknown"),
                 })
             
             return json.dumps({

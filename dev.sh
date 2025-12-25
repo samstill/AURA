@@ -146,10 +146,10 @@ if [ "$MCP_READY" != "true" ]; then
     exit 1
 fi
 
-# Start Main Backend
+# Start Main Backend with verbose logging
 echo -e "${YELLOW}[5/6]${NC} Starting Main Backend on port ${PORT_BACKEND}..."
 cd src
-nohup uvicorn main:app --reload --host 0.0.0.0 --port ${PORT_BACKEND} > ../logs/backend.log 2>&1 &
+nohup uvicorn main:app --reload --host 0.0.0.0 --port ${PORT_BACKEND} --log-level debug > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 

@@ -39,76 +39,149 @@ class LLMService:
     
     def initialize(self):
         """
-        Initialize the Gemini SDK with API key and models.
-        Called during service startup.
+        Initialize the LLM service with available providers.
+        Gemini is optional - service works with any available provider.
         """
-        api_key = settings.google_api_key
-        if not api_key:
-            logger.warning("⚠️ GOOGLE_API_KEY not found - LLM Service disabled")
-            return
+        providers_initialized = 0
         
-        try:
-            genai.configure(api_key=api_key)
-            
-            # Fast Model = Gemini Flash (Reflex Lobe)
-            self.fast_model = genai.GenerativeModel(settings.gemini_fast_model)
-            
-            # Smart Model = Gemini Pro (Deep Lobe)
-            self.smart_model = genai.GenerativeModel(settings.gemini_smart_model)
-            
-            # OpenAI Native Client (Best tool calling)
-            if settings.openai_api_key:
-                try:
-                    self.openai_client = AsyncOpenAI(
-                        api_key=settings.openai_api_key
-                    )
-                    logger.info(f"✅ OpenAI Client initialized ({settings.openai_fast_model} / {settings.openai_smart_model})")
-                except Exception as e:
-                    logger.warning(f"⚠️ OpenAI initialization failed: {e}")
-            
-            # DeepSeek Native Client
-            if settings.deepseek_api_key:
-                try:
-                    self.deepseek_client = AsyncOpenAI(
-                        api_key=settings.deepseek_api_key,
-                        base_url="https://api.deepseek.com"
-                    )
-                    logger.info(f"✅ DeepSeek Client initialized ({settings.deepseek_model})")
-                except Exception as e:
-                    logger.warning(f"⚠️ DeepSeek initialization failed: {e}")
-            
-            # Groq Initialization
-            if settings.groq_api_key:
-                try:
-                    self.groq_client = AsyncOpenAI(
-                        api_key=settings.groq_api_key,
-                        base_url="https://api.groq.com/openai/v1"
-                    )
-                    logger.info(f"✅ Groq Client initialized ({settings.groq_fast_model})")
-                except Exception as e:
-                    logger.warning(f"⚠️ Groq initialization failed: {e}")
+        # Gemini Initialization (optional - may have quota issues)
+        api_key = settings.google_api_key
+        if api_key:
+            try:
+                genai.configure(api_key=api_key)
+                self.fast_model = genai.GenerativeModel(settings.gemini_fast_model)
+                self.smart_model = genai.GenerativeModel(settings.gemini_smart_model)
+                logger.info(f"✅ Gemini initialized ({settings.gemini_fast_model})")
+                providers_initialized += 1
+            except Exception as e:
+                logger.warning(f"⚠️ Gemini initialization failed (will use fallback providers): {e}")
+        
+        # OpenAI Native Client (Best tool calling) - ALWAYS TRY
+        if settings.openai_api_key:
+            try:
+                self.openai_client = AsyncOpenAI(
+                    api_key=settings.openai_api_key
+                )
+                logger.info(f"✅ OpenAI Client initialized ({settings.openai_fast_model})")
+                providers_initialized += 1
+            except Exception as e:
+                logger.warning(f"⚠️ OpenAI initialization failed: {e}")
+        
+        # Groq Initialization
+        if settings.groq_api_key:
+            try:
+                self.groq_client = AsyncOpenAI(
+                    api_key=settings.groq_api_key,
+                    base_url="https://api.groq.com/openai/v1"
+                )
+                logger.info(f"✅ Groq Client initialized ({settings.groq_fast_model})")
+                providers_initialized += 1
+            except Exception as e:
+                logger.warning(f"⚠️ Groq initialization failed: {e}")
 
-            # OpenRouter Initialization
-            if settings.openrouter_api_key:
-                try:
-                    self.openrouter_client = AsyncOpenAI(
-                        api_key=settings.openrouter_api_key,
-                        base_url="https://openrouter.ai/api/v1"
-                    )
-                    logger.info(f"✅ OpenRouter Client initialized")
-                except Exception as e:
-                    logger.warning(f"⚠️ OpenRouter initialization failed: {e}")
-            
+        # OpenRouter Initialization
+        if settings.openrouter_api_key:
+            try:
+                self.openrouter_client = AsyncOpenAI(
+                    api_key=settings.openrouter_api_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
+                logger.info(f"✅ OpenRouter Client initialized")
+                providers_initialized += 1
+            except Exception as e:
+                logger.warning(f"⚠️ OpenRouter initialization failed: {e}")
+        
+        # DeepSeek Native Client
+        if settings.deepseek_api_key:
+            try:
+                self.deepseek_client = AsyncOpenAI(
+                    api_key=settings.deepseek_api_key,
+                    base_url="https://api.deepseek.com"
+                )
+                logger.info(f"✅ DeepSeek Client initialized ({settings.deepseek_model})")
+                providers_initialized += 1
+            except Exception as e:
+                logger.warning(f"⚠️ DeepSeek initialization failed: {e}")
+        
+        # Service is initialized if at least one provider is available
+        if providers_initialized > 0:
             self._initialized = True
-            logger.info(f"✅ LLM Service ready")
-            
-        except Exception as e:
-            logger.error(f"❌ LLM Service initialization failed: {e}")
-            raise
+            logger.info(f"✅ LLM Service ready ({providers_initialized} provider(s))")
+        else:
+            logger.error("❌ No LLM providers available - check your API keys")
     
     @property
     def is_initialized(self) -> bool:
         return self._initialized
+    
+    async def stream_gemini_flash(
+        self, 
+        prompt: str, 
+        system_prompt: str = ""
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream directly from Gemini Flash - bypasses Groq cascade.
+        Used by Staller for reliable, fast streaming.
+        """
+        if not self._initialized or not self.fast_model:
+            yield "[Error: Gemini not initialized]"
+            return
+        
+        try:
+            full_prompt = prompt
+            if system_prompt:
+                full_prompt = f"System: {system_prompt}\nUser: {prompt}"
+            
+            response = await self.fast_model.generate_content_async(
+                full_prompt,
+                stream=True
+            )
+            async for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            logger.warning(f"Gemini Flash streaming error: {e}")
+            yield ""
+    
+    async def stream_openai(
+        self, 
+        prompt: str, 
+        system_prompt: str = "",
+        model: str = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream from OpenAI - used by staller when Gemini quota exhausted.
+        Uses settings.staller_model by default for fast, cheap responses.
+        """
+        if not self.openai_client:
+            logger.warning("OpenAI client not available")
+            yield ""
+            return
+        
+        # Use staller_model from settings if no model specified
+        if model is None:
+            model = settings.staller_model
+        
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            
+            response = await self.openai_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+                max_completion_tokens=50  # Use max_completion_tokens for newer models (gpt-4.1+)
+            )
+            
+            async for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.warning(f"OpenAI streaming error: {e}")
+            yield ""
     
     async def get_reflex_response(
         self, 

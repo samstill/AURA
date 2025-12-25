@@ -32,6 +32,11 @@ class ToolManager:
             - config: User configuration (secrets)
             - auth_type: Authentication strategy
         """
+        # Skip DB query for dev/test user (not a valid UUID)
+        if user_id == "test-user":
+            logger.warning(f"No tools found for user {user_id}. Register tools via Admin Console.")
+            return []
+        
         try:
             # Get tools that are globally enabled OR enabled for this user
             tools = await self.db.get_active_tools_for_user(user_id)
@@ -44,7 +49,7 @@ class ToolManager:
             return tools
             
         except Exception as e:
-            logger.error(f"Failed to load tools from DB: {e}")
+            logger.error(f"❌ Failed to fetch tools: {e}")
             return []
 
 

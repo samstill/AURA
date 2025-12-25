@@ -52,14 +52,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Authentik initialization warning: {e}")
     
-    # Initialize Router Service (sentence-transformers)
-    try:
-        router_service.initialize()
-        logger.info("✅ Router service initialized")
-    except Exception as e:
-        logger.warning(f"⚠️  Router initialization warning: {e}")
-    
-    # Initialize LLM Service (Gemini)
+    # Initialize LLM Service first (needed by router and other services)
     try:
         llm_service.initialize()
         logger.info("✅ LLM service initialized")
@@ -79,10 +72,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️  Calendar DB initialization warning: {e}")
     
-    # TODO: Initialize other services
-    # - Database pool
-    # - Redis client
-    # - Qdrant client
+    # Initialize Orchestrator (Aura Algorithm)
+    # This initializes sub-services: staller, analyst, semantic cache
+    try:
+        from services.orchestrator_service import orchestrator_service
+        from services.tool_registry import tool_registry
+        
+        # Initialize router with LLM for dynamic tool detection
+        # Use the already-initialized llm_service from module level import
+        router_service.initialize(llm_service=llm_service)
+        
+        # Initialize tool registry
+        tool_registry.initialize()
+        
+        # Initialize orchestrator
+        orchestrator_service.initialize()
+        logger.info("✅ Orchestrator service initialized (Aura Algorithm v2)")
+    except Exception as e:
+        logger.warning(f"⚠️  Orchestrator initialization warning: {e}")
     
     yield
     
