@@ -41,6 +41,7 @@ class Category(Enum):
     EMAIL = "email"
     SEARCH = "search"
     TASK = "task"
+    MEMORY = "memory"  # Memory recall/past conversation intent
     GENERAL = "general"
 
 
@@ -118,6 +119,15 @@ class RouterService:
                 r"\b(send|post|message)\b.*\b(slack|channel|dm)\b",
                 r"\b(check|show)\b.*\b(slack|messages|notifications)\b",
             ],
+            # Memory/Recall patterns - triggers deep archive search
+            "memory": [
+                r"\b(remember|recall|mentioned|told you|said before)\b",
+                r"\b(i told you|we discussed|we talked about)\b",
+                r"\b(previously|earlier|last time|before|back when)\b.*\b(said|told|mentioned|discussed)\b",
+                r"\b(what was|what did i|what have i|did i mention)\b",
+                r"\b(my|our)\b.*\b(history|past|conversations?)\b",
+                r"\b(you know|you already know|as you know)\b",
+            ],
         }
         
         # =====================================================================
@@ -176,6 +186,7 @@ class RouterService:
             Category.EMAIL: [r"\b(email|inbox|mail|message|reply|forward)\b"],
             Category.SEARCH: [r"\b(search|find|look up|google|news|weather)\b"],
             Category.TASK: [r"\b(todo|task|reminder|jira|ticket|issue)\b"],
+            Category.MEMORY: [r"\b(remember|recall|told you|said before|mentioned|previously|history)\b"],
         }
         
         self._llm_service = None
@@ -261,9 +272,9 @@ class RouterService:
         text: str, 
         tools_context: str,
         available_tools: list
-    ) -> Optional[str]:
+    ) -> str:
         """
-        Use LLM to detect which tool (if any) the user's query needs.
+        Use LLM to decide the best route: FAST, SMART, or TOOL.
         
         Args:
             text: User's query
@@ -271,71 +282,45 @@ class RouterService:
             available_tools: List of available tool names
             
         Returns:
-            Tool name if detected, None otherwise
+            "FAST", "SMART", or "TOOL:[name]"
         """
         if not self._llm_service or not self._llm_service.openai_client:
-            return None
+            return "SMART" # Default to smart fallsafe
         
-        if not available_tools:
-            return None
-        
-        # Build a fast classification prompt
-        tools_list = ", ".join(available_tools)
-        
-        prompt = f"""Classify if the user's query needs a specific tool.
+        # Build prompt
+        prompt = f"""Classify the user query into one of three categories:
 
-Available tools: {tools_context}
+1. FAST: Simple questions, greetings, facts, jokes, or short chit-chat. (e.g. "hi", "what is python", "tell me a joke", "i like coffee")
+2. SMART: Complex reasoning, planning, analysis, coding, creative writing, or multi-step tasks. (e.g. "plan my week", "debug this code", "write a story")
+3. TOOL: Requires a specific tool from this list: [{tools_context}]
 
 User query: "{text}"
 
-If the query needs one of these tools, respond with ONLY the tool name.
-If no tool is needed (simple chat/question), respond with "none".
-
-Answer:"""
+Respond with ONLY: "FAST", "SMART", or "TOOL:[tool_name]"
+"""
 
         try:
             from config import settings
             
             # Use non-streaming for fast single response
             response = await self._llm_service.openai_client.chat.completions.create(
-                model=settings.staller_model,  # Use fast model
+                model=settings.staller_model,  # Use fast model (e.g. gpt-4o-mini/nano)
                 messages=[
-                    {"role": "system", "content": "You classify user intents. Respond with ONLY a single tool name or 'none'. Nothing else."},
+                    {"role": "system", "content": "You are a precise router. Output ONLY the category code."},
                     {"role": "user", "content": prompt}
                 ],
-                max_completion_tokens=20,  # Use max_completion_tokens for gpt-4.1+ models
+                max_completion_tokens=20,
                 temperature=0
             )
             
-            result = response.choices[0].message.content.strip().lower()
-            
-            # Validate the result
-            if result in available_tools:
-                logger.info(f"🤖 [Router] LLM detected tool intent: {result}")
-                return result
-            elif result == "none" or result not in available_tools:
-                return None
+            result = response.choices[0].message.content.strip()
+            logger.info(f"🤖 [Router] LLM Decision: {result}")
+            return result
             
         except Exception as e:
             logger.warning(f"LLM classification failed: {e}")
-            return None
-        
-        return None
-    
-    async def classify(self, text: str) -> ClassificationResult:
-        """
-        Legacy classification method for backward compatibility.
-        
-        Maps to the new classification context but returns simple result.
-        """
-        context = await self.classify_with_context(text, {})
-        
-        # Map new routes to legacy routes
-        if context.route == "FAST_SOLVER" or context.route == "FAST_ERROR":
-            return "FAST_SOLVER"  # Both handled by fast path
-        else:
-            return "SECRETARY_PROTOCOL"
-    
+            return "SMART" # Fail safe to smart path
+
     async def classify_with_context(
         self, 
         text: str, 
@@ -343,111 +328,66 @@ Answer:"""
         tools_context: str = ""
     ) -> ClassificationContext:
         """
-        Full context-aware classification with LLM-enhanced tool detection.
-        
-        Implements the 4-condition decision matrix:
-        
-        Args:
-            text: User's input query
-            tool_registry: Dict of {tool_name: is_available}
-            tools_context: String description of available tools for LLM
-            
-        Returns:
-            ClassificationContext with full routing information
+        Full context-aware classification with LLM-driven routing.
         """
         text_lower = text.lower().strip()
         
-        # Detect sentiment and category for context injection
+        # Detect context
         sentiment = self._detect_sentiment(text)
         category = self._detect_category(text)
         
-        # =====================================================================
-        # Condition A: Simple Query (No Tool Needed) → FAST_SOLVER
-        # =====================================================================
-        if self._is_simple_query(text):
-            logger.info(f"📍 [Router] FAST_SOLVER (simple query)")
-            return ClassificationContext(
-                route="FAST_SOLVER",
-                sentiment=sentiment,
-                category=category,
-                confidence=0.9
-            )
-        
-        # =====================================================================
-        # Check for tool intent - Use LLM first, then fall back to regex
-        # =====================================================================
+        # Pre-check: Ultra-simple patterns (0ms latency optimization)
+        # We keep this ONLY for "hi/hello" type instant interactions
+        if self._is_simple_query(text) and len(text.split()) <= 2:
+             logger.info(f"📍 [Router] FAST_SOLVER (heuristic pre-check)")
+             return ClassificationContext("FAST_SOLVER", sentiment=sentiment, category=category, confidence=0.99)
+
+        # Main Path: LLM Decision
         available_tools = list(tool_registry.keys())
+        decision = await self._classify_with_llm(text, tools_context, available_tools)
         
-        # Try LLM-based classification for accurate intent detection
-        tool_needed = await self._classify_with_llm(text, tools_context, available_tools)
+        # Parse Decision
+        decision_upper = decision.upper().strip()
         
-        # Fall back to regex if LLM didn't detect or failed
-        if not tool_needed:
-            tool_needed = self._detect_tool_intent(text)
+        # Robust parsing (handle "Category: FAST" or "FAST.")
+        is_fast = "FAST" in decision_upper and "SMART" not in decision_upper
+        is_smart = "SMART" in decision_upper
+        is_tool = "TOOL" in decision_upper
         
-        if tool_needed:
-            tool_available = tool_registry.get(tool_needed, False)
+        if is_fast:
+            logger.info(f"📍 [Router] FAST_SOLVER (LLM decision)")
+            return ClassificationContext("FAST_SOLVER", sentiment=sentiment, category=category, confidence=0.9)
             
-            # =================================================================
-            # Condition B: Tool Intent + Tool MISSING → FAST_ERROR
-            # =================================================================
-            if not tool_available:
-                logger.info(f"📍 [Router] FAST_ERROR (tool '{tool_needed}' not connected)")
-                return ClassificationContext(
-                    route="FAST_ERROR",
-                    tool_needed=tool_needed,
-                    tool_available=False,
-                    sentiment=sentiment,
-                    category=category,
-                    confidence=0.95
-                )
+        elif is_tool:
+            # Extract tool name more robustly
+            try:
+                # Look for TOOL:name or just name if it's in the string
+                tool_part = decision.split("TOOL:")[-1].strip().lower()
+                # Remove punctuation
+                tool_name = re.sub(r'[^\w\s]', '', tool_part).strip()
+            except:
+                tool_name = "unknown"
+
+            # Verify availability
+            if tool_registry.get(tool_name, False):
+                logger.info(f"📍 [Router] SECRETARY_PROTOCOL (Tool: {tool_name})")
+                return ClassificationContext("SECRETARY_PROTOCOL", tool_needed=tool_name, tool_available=True, sentiment=sentiment, category=category, confidence=0.95)
+            else:
+                logger.info(f"📍 [Router] FAST_ERROR (Tool {tool_name} unavailable)")
+                return ClassificationContext("FAST_ERROR", tool_needed=tool_name, tool_available=False, sentiment=sentiment, category=category, confidence=0.95)
+        
+        # Fallback to SMART if explicitly chosen
+        elif is_smart:
+            logger.info(f"📍 [Router] SECRETARY_PROTOCOL (Smart/Reasoning)")
+            return ClassificationContext("SECRETARY_PROTOCOL", sentiment=sentiment, category=category, confidence=0.9)
             
-            # =================================================================
-            # Condition C: Tool Intent + Tool AVAILABLE → SECRETARY_PROTOCOL
-            # =================================================================
-            logger.info(f"📍 [Router] SECRETARY_PROTOCOL (tool '{tool_needed}' available)")
-            return ClassificationContext(
-                route="SECRETARY_PROTOCOL",
-                tool_needed=tool_needed,
-                tool_available=True,
-                sentiment=sentiment,
-                category=category,
-                confidence=0.95
-            )
-        
-        # =====================================================================
-        # Condition D: Complex Reasoning → SECRETARY_PROTOCOL
-        # =====================================================================
-        if self._is_complex_reasoning(text):
-            logger.info(f"📍 [Router] SECRETARY_PROTOCOL (complex reasoning)")
-            return ClassificationContext(
-                route="SECRETARY_PROTOCOL",
-                sentiment=sentiment,
-                category=category,
-                confidence=0.8
-            )
-        
-        # =====================================================================
-        # Default: Short/medium queries without tool intent → FAST_SOLVER
-        # =====================================================================
-        word_count = len(text.split())
-        if word_count <= 15:
-            logger.info(f"📍 [Router] FAST_SOLVER (default for medium query)")
-            return ClassificationContext(
-                route="FAST_SOLVER",
-                sentiment=sentiment,
-                category=category,
-                confidence=0.7
-            )
-        
-        # Longer queries default to Secretary Protocol
-        logger.info(f"📍 [Router] SECRETARY_PROTOCOL (default for longer query)")
-        return ClassificationContext(
-            route="SECRETARY_PROTOCOL",
-            sentiment=sentiment,
-            category=category,
-            confidence=0.6
-        )
+        # If LLM returned garbage/failed to decide, fall back to Heuristics
+        else:
+            logger.warning(f"⚠️ [Router] LLM returned ambiguous '{decision}'. Falling back to heuristics.")
+            if self._is_simple_query(text):
+                return ClassificationContext("FAST_SOLVER", sentiment=sentiment, category=category, confidence=0.5)
+            else:
+                return ClassificationContext("SECRETARY_PROTOCOL", sentiment=sentiment, category=category, confidence=0.5)
 
 
 # Singleton instance

@@ -29,13 +29,40 @@ class DatabaseService:
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable not set")
         
-        self.pool = await asyncpg.create_pool(
-            self.database_url,
-            min_size=2,
-            max_size=10,
-            command_timeout=30,
-        )
-        print("✅ Database connection pool established")
+        try:
+            # For Supabase connections, we need to parse URL and add SSL
+            if "supabase.co" in self.database_url:
+                from urllib.parse import urlparse
+                
+                parsed = urlparse(self.database_url)
+                
+                # Use ssl='require' string which is simpler and works with asyncpg
+                self.pool = await asyncpg.create_pool(
+                    host=parsed.hostname,
+                    port=parsed.port or 5432,
+                    user=parsed.username,
+                    password=parsed.password,
+                    database=parsed.path.lstrip('/'),
+                    min_size=1,
+                    max_size=5,
+                    command_timeout=30,
+                    ssl='require',  # Simple SSL mode
+                )
+            else:
+                # Local PostgreSQL connection
+                self.pool = await asyncpg.create_pool(
+                    self.database_url,
+                    min_size=2,
+                    max_size=10,
+                    command_timeout=30,
+                )
+            print("✅ Database connection pool established")
+        except Exception as e:
+            print(f"⚠️ Database connection failed: {e}")
+            import traceback
+            traceback.print_exc()
+            self.pool = None
+            raise
     
     async def disconnect(self):
         """Close the connection pool."""

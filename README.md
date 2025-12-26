@@ -25,6 +25,7 @@
 - 🛠️ **Agentic Skill Store** — Dynamically load and execute tools via MCP protocol
 - 🎤 **Voice Interface** — Natural voice interaction with Kokoro/ElevenLabs TTS
 - 💬 **Intelligent Chat** — Context-aware conversations with semantic routing
+- 🧠 **Super Memory 3.0** — 3-Tier memory system (Fast Context, Warm Profile, Cold Archive)
 - 🔐 **Secure Authentication** — OAuth2/OIDC via Authentik IDP
 - 📱 **Cross-Platform** — Native mobile apps for iOS and Android
 - ☁️ **Cloud-Native** — Kubernetes-first architecture with Skaffold dev loop
@@ -41,9 +42,9 @@
 | **MCP Server** | JSON-RPC 2.0 | Tool execution microservice |
 | **Frontend** | Flutter | Cross-platform mobile |
 | **Auth** | Authentik | Local OIDC Provider |
-| **Database** | PostgreSQL | Supabase (External) / Docker (Local) |
+| **Database** | PostgreSQL | Supabase / Docker (with pgvector) |
 | **Cache** | Redis | Upstash (External) |
-| **Vectors** | Qdrant | Qdrant Cloud (External) |
+| **Vectors** | PostgreSQL | Native pgvector embeddings |
 
 ---
 
@@ -146,6 +147,7 @@ cd flutter && flutter run
 |---------|-----|
 | 🚀 API Root | `http://localhost:30000` |
 | 📚 Swagger Docs | `http://localhost:30000/docs` |
+| 🧠 Memory Docs | [`docs/SUPER_MEMORY.md`](docs/SUPER_MEMORY.md) |
 | 🎮 Admin Console | `http://localhost:30000/admin_console.html` |
 | 🔧 MCP Server | `http://localhost:8000` |
 | 🔐 Authentik | `http://localhost:9000` |
@@ -221,6 +223,8 @@ See [.env.example](.env.example) for full configuration options.
 | `GET /api/v1/tools` | List available tools |
 | `GET /api/v1/calendar/connect` | Initiate Google Calendar OAuth |
 | `GET /api/v1/calendar/events` | Get calendar events |
+| `GET /api/v1/memory/profile/{id}` | Get user memory profile |
+| `DELETE /api/v1/memory/profile/{id}/reset` | Reset user memory |
 
 ---
 
@@ -235,7 +239,8 @@ See [.env.example](.env.example) for full configuration options.
 - [x] Semantic caching service
 - [x] MCP Server & Tool execution
 - [x] Google Calendar integration
-- [ ] Vector memory with Qdrant
+- [x] Super Memory 3.0 (pgvector + profile consolidation)
+- [ ] Advanced ReAct reasoning loop
 - [ ] Advanced ReAct reasoning loop
 - [ ] Multi-modal input support
 - [ ] Production Kubernetes deployment

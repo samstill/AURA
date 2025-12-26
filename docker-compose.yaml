@@ -5,6 +5,8 @@ services:
   # Database
   # ---------------------------------------------------------------------------
   postgres:
+    # For local dev with pgvector, use: pgvector/pgvector:pg16
+    # Currently using Supabase Cloud instead
     image: postgres:15-alpine
     container_name: aura-postgres
     restart: always

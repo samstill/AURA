@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import chat, voice, auth, calendar
+from routers import chat, voice, auth, calendar, memory
 from services.authentik_service import authentik_service
 from services.llm_service import llm_service
 from services.router_service import router_service
@@ -85,9 +85,9 @@ async def lifespan(app: FastAPI):
         # Initialize tool registry
         tool_registry.initialize()
         
-        # Initialize orchestrator
-        orchestrator_service.initialize()
-        logger.info("✅ Orchestrator service initialized (Aura Algorithm v2)")
+        # Initialize orchestrator with database pool for memory service
+        await orchestrator_service.initialize(database_service.pool)
+        logger.info("✅ Orchestrator service initialized (Aura Algorithm v2 + Super Memory 3.0)")
     except Exception as e:
         logger.warning(f"⚠️  Orchestrator initialization warning: {e}")
     
@@ -190,6 +190,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["Voice"])
 app.include_router(calendar.router, prefix="/api/v1", tags=["Calendar"])
+app.include_router(memory.router, prefix="/api/v1/memory", tags=["Memory"])
 
 # Late import to avoid circular dependencies if any
 from routers import tools

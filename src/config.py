@@ -152,6 +152,18 @@ class Settings(BaseSettings):
     aura_cache_similarity_threshold: float = 0.95
     
     # -------------------------------------------------------------------------
+    # Super Memory 3.0 Configuration
+    # -------------------------------------------------------------------------
+    # Maximum words in active profile (Tier 2 - Warm)
+    memory_profile_max_words: int = 2000
+    # Maximum words in Tier 1 summary (cheat sheet)
+    memory_summary_max_words: int = 500
+    # Similarity threshold for archive search (Tier 3 - Cold)
+    memory_archive_similarity_threshold: float = 0.75
+    # Days before pruning inactive facts
+    memory_prune_after_days: int = 30
+    
+    # -------------------------------------------------------------------------
     # Integrations (OAuth credentials)
     # -------------------------------------------------------------------------
     github_client_id: Optional[str] = "Ov23li9L5k6tqPjRk70h"

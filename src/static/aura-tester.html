@@ -1162,6 +1162,234 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* =====================================================================
+           MEMORY PANEL STYLES
+           ===================================================================== */
+        .memory-container {
+            display: none;
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            min-height: 500px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .memory-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .memory-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .memory-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .memory-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .memory-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .memory-btn:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .memory-btn.primary {
+            background: var(--gradient-primary);
+            border: none;
+            color: white;
+        }
+
+        .memory-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            overflow: auto;
+        }
+
+        .memory-section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .memory-section h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .memory-content {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .memory-item {
+            padding: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+
+        .memory-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .memory-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .memory-value {
+            color: var(--text-primary);
+        }
+
+        .memory-tag {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .memory-tag.conscious {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .memory-tag.rational {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+        }
+
+        .memory-tag.subconscious {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .memory-tag.unconscious {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .memory-tag.emotional {
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+        }
+
+        .memory-input-area {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .memory-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .memory-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .profile-stat {
+            text-align: center;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .profile-stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .profile-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .archive-result {
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .archive-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .archive-similarity {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border-radius: 4px;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -1193,6 +1421,7 @@
             <div class="tab-toggle">
                 <button class="tab-btn active" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
                 <button class="tab-btn" id="tabVoice" onclick="switchTab('voice')">🎤 Voice</button>
+                <button class="tab-btn" id="tabMemory" onclick="switchTab('memory')">🧠 Memory</button>
             </div>
             <div class="port-toggle">
                 <button class="port-btn active" id="btnPort30000" onclick="setPort(30000)">:30000</button>
@@ -1329,6 +1558,77 @@
                     onclick="downloadAudio()" title="Download audio">
                     💾
                 </button>
+            </div>
+        </div>
+
+        <!-- Memory Container -->
+        <div class="memory-container" id="memoryContainer">
+            <div class="memory-header">
+                <h2>🧠 Super Memory 3.0</h2>
+                <div class="memory-actions">
+                    <button class="memory-btn" onclick="loadUserProfile()">🔄 Refresh Profile</button>
+                    <button class="memory-btn primary" onclick="testFreudianAnalysis()">🎭 Test Analysis</button>
+                </div>
+            </div>
+
+            <div class="memory-main">
+                <!-- Profile Section -->
+                <div class="memory-section">
+                    <h3>📋 User Profile (Tier 2 - Warm)</h3>
+                    <div class="profile-stats">
+                        <div class="profile-stat">
+                            <div class="profile-stat-value" id="profileVersion">-</div>
+                            <div class="profile-stat-label">Version</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="profile-stat-value" id="profileWords">-</div>
+                            <div class="profile-stat-label">Words</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="profile-stat-value" id="profileInteractions">-</div>
+                            <div class="profile-stat-label">Interactions</div>
+                        </div>
+                    </div>
+                    <div class="memory-content" id="profileContent">
+                        <div style="color: var(--text-secondary); text-align: center; padding: 2rem;">
+                            Click "Refresh Profile" to load user memory
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Archive Search Section -->
+                <div class="memory-section">
+                    <h3>🗄️ Archive Search (Tier 3 - Cold)</h3>
+                    <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
+                        <input type="text" class="memory-input" id="archiveSearchInput"
+                            placeholder="Search memories... (e.g., 'trip to Goa')">
+                        <button class="memory-btn primary" onclick="searchArchive()">🔍</button>
+                    </div>
+                    <div class="memory-content" id="archiveResults">
+                        <div style="color: var(--text-secondary); text-align: center; padding: 2rem;">
+                            Search the cold archive for past memories
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 1 Summary -->
+                <div class="memory-section" style="grid-column: span 2;">
+                    <h3>⚡ Tier 1 Summary (LLM Cheat Sheet)</h3>
+                    <div class="memory-content" id="tier1Summary"
+                        style="font-style: italic; color: var(--text-secondary);">
+                        The 500-word summary injected into every LLM prompt
+                    </div>
+                </div>
+            </div>
+
+            <div class="memory-input-area">
+                <input type="text" class="memory-input" id="memoryTestInput"
+                    placeholder="Type something to test Freudian analysis..." style="flex: 2;">
+                <input type="text" class="memory-input" id="memoryUserId" placeholder="User ID" value="test-user">
+                <button class="memory-btn primary" onclick="testFreudianAnalysis()">🎭 Analyze</button>
+                <button class="memory-btn danger" onclick="resetProfile()"
+                    style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444;">🗑️
+                    Delete Profile</button>
             </div>
         </div>
     </main>
@@ -1592,13 +1892,238 @@
         function switchTab(tab) {
             document.getElementById('tabChat').classList.toggle('active', tab === 'chat');
             document.getElementById('tabVoice').classList.toggle('active', tab === 'voice');
+            document.getElementById('tabMemory').classList.toggle('active', tab === 'memory');
             document.querySelector('.chat-container').style.display = tab === 'chat' ? 'flex' : 'none';
             document.getElementById('voiceContainer').classList.toggle('active', tab === 'voice');
+            document.getElementById('memoryContainer').classList.toggle('active', tab === 'memory');
 
             // Update info banner
-            const endpoint = tab === 'chat' ? '/api/v1/chat/send/dev' : '/api/v1/voice/stream';
-            document.querySelector('.info-banner code:last-child').textContent = endpoint;
+            const endpoints = {
+                'chat': '/api/v1/chat/send/dev',
+                'voice': '/api/v1/voice/stream',
+                'memory': '/api/v1/memory/*'
+            };
+            document.querySelector('.info-banner code:last-child').textContent = endpoints[tab] || endpoints.chat;
+
+            // Load profile when switching to memory tab
+            if (tab === 'memory') {
+                loadUserProfile();
+            }
         }
+
+        // =====================================================================
+        // SUPER MEMORY 3.0 FUNCTIONS
+        // =====================================================================
+
+        async function loadUserProfile() {
+            const userId = document.getElementById('memoryUserId').value || 'test-user';
+            const profileContent = document.getElementById('profileContent');
+            const tier1Summary = document.getElementById('tier1Summary');
+
+            profileContent.innerHTML = '<div style="text-align:center; padding:1rem;">Loading...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/memory/profile/${userId}`);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        profileContent.innerHTML = `
+                            <div style="color: var(--text-secondary); text-align: center; padding: 1rem;">
+                                No profile found for user: ${userId}<br>
+                                <small>Send some messages in the Chat tab to create a profile!</small>
+                            </div>
+                        `;
+                        document.getElementById('profileVersion').textContent = '0';
+                        document.getElementById('profileWords').textContent = '0';
+                        document.getElementById('profileInteractions').textContent = '0';
+                        tier1Summary.textContent = 'No summary available';
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('profileVersion').textContent = data.profile_version || 0;
+                document.getElementById('profileWords').textContent = data.word_count || 0;
+                document.getElementById('profileInteractions').textContent = data.total_interactions || 0;
+
+                // Update Tier 1 Summary
+                tier1Summary.textContent = data.tier_1_summary || 'No summary generated yet';
+                tier1Summary.style.fontStyle = data.tier_1_summary ? 'normal' : 'italic';
+                tier1Summary.style.color = data.tier_1_summary ? 'var(--text-primary)' : 'var(--text-secondary)';
+
+                // Render profile sections
+                const profile = data.long_term_profile || {};
+                let html = '';
+
+                const sections = [
+                    { key: 'identity', label: '🪪 Identity', color: 'conscious' },
+                    { key: 'preferences', label: '💜 Preferences', color: 'rational' },
+                    { key: 'core_beliefs', label: '💡 Core Beliefs', color: 'subconscious' },
+                    { key: 'behavioral_patterns', label: '🔄 Behavioral Patterns', color: 'unconscious' },
+                    { key: 'active_projects', label: '🚀 Active Projects', color: 'emotional' }
+                ];
+
+                for (const section of sections) {
+                    const items = profile[section.key] || [];
+                    if (items.length > 0) {
+                        html += `
+                            <div class="memory-item">
+                                <div class="memory-label">${section.label}</div>
+                                <div class="memory-value">
+                                    ${items.map(item => `<span class="memory-tag ${section.color}">${item}</span> `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                if (!html) {
+                    html = '<div style="color: var(--text-secondary); text-align: center; padding: 1rem;">Profile is empty. Send messages to build your profile!</div>';
+                }
+
+                profileContent.innerHTML = html;
+
+            } catch (error) {
+                console.error('Failed to load profile:', error);
+                profileContent.innerHTML = `
+                    <div style="color: var(--error); text-align: center; padding: 1rem;">
+                        ❌ Failed to load profile: ${error.message}<br>
+                        <small>Make sure the Memory API endpoints are implemented</small>
+                    </div>
+                `;
+            }
+        }
+
+        async function searchArchive() {
+            const query = document.getElementById('archiveSearchInput').value.trim();
+            const userId = document.getElementById('memoryUserId').value || 'test-user';
+            const archiveResults = document.getElementById('archiveResults');
+
+            if (!query) {
+                archiveResults.innerHTML = '<div style="color: var(--warning); text-align: center; padding: 1rem;">Please enter a search query</div>';
+                return;
+            }
+
+            archiveResults.innerHTML = '<div style="text-align:center; padding:1rem;">Searching...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/memory/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, user_id: userId, max_results: 10 })
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+
+                if (!data.memories || data.memories.length === 0) {
+                    archiveResults.innerHTML = `
+                        <div style="color: var(--text-secondary); text-align: center; padding: 1rem;">
+                            No memories found for: "${query}"
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                for (const memory of data.memories) {
+                    const similarity = (memory.similarity * 100).toFixed(1);
+                    html += `
+                        <div class="archive-result">
+                            <div class="archive-result-header">
+                                <span class="memory-tag ${memory.category || 'conscious'}">${memory.category || 'fact'}</span>
+                                <span class="archive-similarity">${similarity}% match</span>
+                            </div>
+                            <div style="font-size: 0.85rem;">${memory.content}</div>
+                        </div>
+                    `;
+                }
+
+                archiveResults.innerHTML = html;
+
+            } catch (error) {
+                console.error('Archive search failed:', error);
+                archiveResults.innerHTML = `
+                    <div style="color: var(--error); text-align: center; padding: 1rem;">
+                        ❌ Search failed: ${error.message}<br>
+                        <small>Memory API endpoint may not be implemented yet</small>
+                    </div>
+                `;
+            }
+        }
+
+        async function testFreudianAnalysis() {
+            const testInput = document.getElementById('memoryTestInput').value.trim();
+            const userId = document.getElementById('memoryUserId').value || 'test-user';
+
+            if (!testInput) {
+                alert('Please enter some text to analyze');
+                return;
+            }
+
+            // Send as a chat message to trigger background analysis
+            try {
+                const response = await fetch(`${API_URL}/api/v1/chat/send/dev`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: testInput,
+                        user_id: userId,
+                        stream: false
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('memoryTestInput').value = '';
+                    alert('✅ Message sent for analysis. Refresh profile in a few seconds to see updates!');
+
+                    // Auto-refresh after 3 seconds
+                    setTimeout(loadUserProfile, 3000);
+                } else {
+                    alert('❌ Failed to send message for analysis');
+                }
+            } catch (error) {
+                console.error('Analysis test failed:', error);
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function resetProfile() {
+            const userId = document.getElementById('memoryUserId').value.trim();
+
+            if (!confirm(`Are you sure you want to PERMANENTLY delete the profile and memory archive for user '${userId}'?\n\nThis cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/memory/profile/${userId}/reset`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert(`✅ Profile for user '${userId}' has been deleted.`);
+                    // Refresh profile view to show empty state
+                    document.getElementById('profileContent').innerHTML = '<div style="color: #6b7280; text-align: center; padding: 20px;">Profile deleted</div>';
+                    document.getElementById('archiveResults').innerHTML = '';
+                    loadUserProfile(); // Try to reload (will indicate empty/new)
+                } else {
+                    const data = await response.json();
+                    alert('❌ Delete failed: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Reset failed:', error);
+                alert('❌ Error: ' + error.message);
+            }
+        }
+
+        // Add Enter key listener for archive search
+        document.getElementById('archiveSearchInput')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') searchArchive();
+        });
 
         function logVoice(message, type = 'info') {
             const entry = document.createElement('div');

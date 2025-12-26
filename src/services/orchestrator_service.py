@@ -42,6 +42,7 @@ from services.stitcher_service import stitcher_service
 from services.analyst_service import analyst_service
 from services.semantic_cache_service import semantic_cache_service
 from services.tool_manager import tool_manager
+from services.memory_service import memory_service
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -112,16 +113,25 @@ class OrchestratorService:
         self.stitcher_service = stitcher_service
         self.analyst_service = analyst_service
         self.semantic_cache = semantic_cache_service
+        self.memory_service = memory_service
     
-    def initialize(self):
+    async def initialize(self, db_pool=None):
         """Initialize orchestrator and sub-services."""
         self.staller_service.initialize()
-        self.analyst_service.initialize()
+        self.analyst_service.initialize(memory_service=self.memory_service)
         try:
             self.semantic_cache.initialize()
         except Exception as e:
             logger.warning(f"Semantic cache init failed (continuing without cache): {e}")
-        logger.info("✅ Orchestrator Service initialized (Aura Algorithm)")
+        
+        # Initialize memory service with database pool
+        if db_pool:
+            try:
+                await self.memory_service.initialize(db_pool)
+            except Exception as e:
+                logger.warning(f"Memory service init failed (continuing without memory): {e}")
+        
+        logger.info("✅ Orchestrator Service initialized (Aura Algorithm + Super Memory)")
     
     # =========================================================================
     # Main Orchestration Entry Point
@@ -148,64 +158,77 @@ class OrchestratorService:
         Yields:
             Response chunks for streaming
         """
-        # Fetch tool registry if not provided
-        if tool_registry is None:
+        try:
+            # Fetch tool registry if not provided
+            if tool_registry is None:
+                try:
+                    tools = await tool_manager.get_active_tools_for_user(user_id)
+                    tool_registry = {t.get("name", ""): True for t in tools if t.get("name")}
+                    # Add calendar as built-in tool
+                    tool_registry["calendar"] = True
+                except Exception as e:
+                    logger.warning(f"Tool registry fetch failed: {e}")
+                    tool_registry = {"calendar": True}  # Default: calendar available
+            
+            # =====================================================================
+            # Phase A: Ingestion & Smart Classification
+            # =====================================================================
+            
+            # 1. Semantic Cache Check (10ms target)
             try:
-                tools = await tool_manager.get_active_tools_for_user(user_id)
-                tool_registry = {t.get("name", ""): True for t in tools if t.get("name")}
-                # Add calendar as built-in tool
-                tool_registry["calendar"] = True
+                cache_hit = await self.semantic_cache.check(user_query, user_id)
+                if cache_hit:
+                    logger.info(f"🎯 [Orchestrator] Cache hit ({cache_hit.source})")
+                    yield cache_hit.response
+                    return
             except Exception as e:
-                logger.warning(f"Tool registry fetch failed: {e}")
-                tool_registry = {"calendar": True}  # Default: calendar available
-        
-        # =====================================================================
-        # Phase A: Ingestion & Smart Classification
-        # =====================================================================
-        
-        # 1. Semantic Cache Check (10ms target)
-        try:
-            cache_hit = await self.semantic_cache.check(user_query, user_id)
-            if cache_hit:
-                logger.info(f"🎯 [Orchestrator] Cache hit ({cache_hit.source})")
-                yield cache_hit.response
-                return
+                logger.debug(f"Cache check skipped: {e}")
+            
+            # 2. Generate tools context for LLM classification
+            from services.tool_registry import tool_registry as tool_reg
+            try:
+                available_tools = await tool_reg.get_available_tools(user_id)
+                tools_context = tool_reg.get_tools_context_for_llm(available_tools)
+                # Update tool_registry with actual available tools
+                tool_registry = tool_reg.get_tool_registry_dict(available_tools)
+            except Exception as e:
+                logger.warning(f"Tool registry context generation failed: {e}")
+                tools_context = "calendar (schedule events, check availability)"
+            
+            # 3. Context-Aware Classification with LLM
+            context = await self.router_service.classify_with_context(user_query, tool_registry, tools_context)
+            logger.info(f"📍 [Orchestrator] Route: {context.route} | Tool: {context.tool_needed}")
+            
+            # =====================================================================
+            # Route Based on Classification
+            # =====================================================================
+            
+            # =====================================================================
+            # Route Based on Classification
+            # =====================================================================
+            
+            if context.route == "FAST_SOLVER":
+                # Simple query - direct fast path
+                async for chunk in self._handle_fast_solver(user_query, user_id):
+                    yield chunk
+                    
+            elif context.route == "FAST_ERROR":
+                # Tool missing - fast error response
+                async for chunk in self._handle_fast_error(context):
+                    yield chunk
+                    
+            elif context.route == "SECRETARY_PROTOCOL":
+                # Complex query - full Secretary Protocol
+                async for chunk in self._handle_secretary_protocol(user_query, user_id, context):
+                    yield chunk
+
         except Exception as e:
-            logger.debug(f"Cache check skipped: {e}")
-        
-        # 2. Generate tools context for LLM classification
-        from services.tool_registry import tool_registry as tool_reg
-        try:
-            available_tools = await tool_reg.get_available_tools(user_id)
-            tools_context = tool_reg.get_tools_context_for_llm(available_tools)
-            # Update tool_registry with actual available tools
-            tool_registry = tool_reg.get_tool_registry_dict(available_tools)
-        except Exception as e:
-            logger.warning(f"Tool registry context generation failed: {e}")
-            tools_context = "calendar (schedule events, check availability)"
-        
-        # 3. Context-Aware Classification with LLM
-        context = await self.router_service.classify_with_context(user_query, tool_registry, tools_context)
-        logger.info(f"📍 [Orchestrator] Route: {context.route} | Tool: {context.tool_needed}")
-        
-        # =====================================================================
-        # Route Based on Classification
-        # =====================================================================
-        
-        if context.route == "FAST_SOLVER":
-            # Simple query - direct fast path
-            async for chunk in self._handle_fast_solver(user_query, user_id):
-                yield chunk
-                
-        elif context.route == "FAST_ERROR":
-            # Tool missing - fast error response
-            async for chunk in self._handle_fast_error(context):
-                yield chunk
-                
-        elif context.route == "SECRETARY_PROTOCOL":
-            # Complex query - full Secretary Protocol
-            async for chunk in self._handle_secretary_protocol(user_query, user_id, context):
-                yield chunk
+            logger.error(f"❌ Critical Orchestrator Error: {e}", exc_info=True)
+            yield f"I apologize, but I encountered a system error: {str(e)}"
+        except BaseException as e:
+            # Catch heavy system errors like CancelledError
+            logger.error(f"🛑 Orchestrator System Exit (Cancelled/Signal): {type(e).__name__}: {e}")
+            raise e
     
     # =========================================================================
     # Route Handlers
@@ -220,12 +243,24 @@ class OrchestratorService:
         FAST_SOLVER path: Direct response from fast model.
         
         For simple queries that don't need tool use.
-        Caches the response for future semantic matching.
+        Injects memory context and caches the response.
         """
         logger.info(f"⚡ [Orchestrator] FAST path for: {user_query[:30]}...")
         
+        # FAST PATH: Fetch user memory context (Tier 1 summary)
+        user_context = ""
+        try:
+            user_context = await self.memory_service.get_user_context(user_id)
+        except Exception as e:
+            logger.debug(f"Memory context fetch skipped: {e}")
+        
+        # Build system prompt with memory context
+        system_prompt = AURA_SYSTEM_PROMPT
+        if user_context:
+            system_prompt = f"{AURA_SYSTEM_PROMPT}\n\nUser Context: {user_context}"
+        
         full_response = ""
-        async for chunk in self.llm_service.get_reflex_response(user_query, AURA_SYSTEM_PROMPT):
+        async for chunk in self.llm_service.get_reflex_response(user_query, system_prompt):
             full_response += chunk
             yield chunk
         
@@ -234,6 +269,11 @@ class OrchestratorService:
             await self.semantic_cache.store(user_query, full_response, user_id)
         except Exception as e:
             logger.debug(f"Cache store skipped: {e}")
+        
+        # SLOW PATH: Schedule background Freudian analysis
+        asyncio.create_task(
+            self._run_memory_analysis(user_id, user_query, full_response)
+        )
     
     async def _handle_fast_error(
         self, 
@@ -308,6 +348,11 @@ class OrchestratorService:
         # Phase B: Start Parallel Tasks
         # =====================================================================
         
+        # Prime the stream to prevent ASGI timeout/errors
+        yield " "
+        
+        logger.info("[Orchestrator] Starting parallel tasks")
+        
         # Thread 2: Start Agent (Heavy Task) - DO NOT AWAIT
         agent_task = asyncio.create_task(
             self.agent_service.run_agent_loop(
@@ -321,56 +366,78 @@ class OrchestratorService:
         staller_buffer = ""
         staller_tokens = []
         start_time = time.time()
+        staller_yielded = False  # Track if we've yielded anything
         
         # Use LLM-enhanced staller (template yields first for instant response)
-        async for chunk in self.staller_service.stream_stall(staller_context, use_llm=True):
-            elapsed = time.time() - start_time
-            
-            # Check if agent is done while streaming staller
-            if agent_task.done():
-                # Agent finished during staller - perfect stitch!
-                try:
-                    agent_result = agent_task.result()
-                    logger.info(f"🪡 [Orchestrator] Perfect stitch at {elapsed:.2f}s")
-                    
-                    # Yield remaining staller content
-                    staller_buffer += chunk.content
-                    yield chunk.content
-                    
-                    # Stitch and yield agent result
-                    stitch_result = self.stitcher_service.stitch(staller_buffer, agent_result)
-                    
-                    # Extract just the agent portion (staller already yielded)
-                    agent_portion = stitch_result.text[len(staller_buffer):].lstrip()
-                    yield agent_portion
-                    
-                    # Cache the full response
+        try:
+            logger.info("[Orchestrator] Entering staller stream loop")
+            async for chunk in self.staller_service.stream_stall(staller_context, use_llm=True):
+                elapsed = time.time() - start_time
+                staller_yielded = True  # Mark that we've yielded
+                
+                # Check if agent is done while streaming staller
+                if agent_task.done():
+                    logger.info("[Orchestrator] Agent finished early inside staller loop")
+                    # Agent finished during staller - perfect stitch!
                     try:
-                        await self.semantic_cache.store(
-                            user_query, 
-                            stitch_result.text, 
-                            user_id
+                        agent_result = agent_task.result()
+                        logger.info(f"🪡 [Orchestrator] Perfect stitch at {elapsed:.2f}s")
+                        
+                        # Yield remaining staller content
+                        staller_buffer += chunk.content
+                        yield chunk.content
+                        
+                        # Stitch and yield agent result
+                        stitch_result = self.stitcher_service.stitch(staller_buffer, agent_result)
+                        
+                        # Extract just the agent portion (staller already yielded)
+                        agent_portion = stitch_result.text[len(staller_buffer):].lstrip()
+                        yield agent_portion
+                        
+                        # Cache the full response
+                        try:
+                            await self.semantic_cache.store(
+                                user_query, 
+                                stitch_result.text, 
+                                user_id
+                            )
+                        except Exception:
+                            pass
+                        
+                        # Memory analysis for perfect stitch
+                        asyncio.create_task(
+                            self._run_memory_analysis(user_id, user_query, stitch_result.text)
                         )
-                    except Exception:
-                        pass
-                    
-                    return
-                except Exception as e:
-                    logger.error(f"Agent task error during stitch: {e}")
-                    yield f"\n\n[Error: {str(e)}]"
-                    return
-            
-            # Track staller output
-            staller_buffer += chunk.content
-            staller_tokens.append(chunk.content)
-            
-            # Yield staller chunks (but hold buffer for potential stitching)
-            if not chunk.is_buffer:
-                yield chunk.content
+                        
+                        logger.info("[Orchestrator] Early return after perfect stitch")
+                        return
+                    except Exception as e:
+                        logger.error(f"Agent task error during stitch: {e}")
+                        yield f"\n\n[Error: {str(e)}]"
+                        return
+                
+                # Track staller output
+                staller_buffer += chunk.content
+                staller_tokens.append(chunk.content)
+                
+                # Yield staller chunks (but hold buffer for potential stitching)
+                if not chunk.is_buffer:
+                    yield chunk.content
+        except Exception as e:
+            logger.error(f"[Orchestrator] Staller loop error: {e}")
+        
+        logger.info(f"[Orchestrator] Staller loop finished. Yielded: {staller_yielded}")
+
+        # Fallback if staller didn't yield anything (prevents ASGI error)
+        if not staller_yielded:
+            logger.info("[Orchestrator] Staller yielded nothing, force yielding fallback")
+            yield "Let me check that for you..."
+            staller_buffer = "Let me check that for you..."
         
         # Yield the buffer now that staller is done
         buffer_text = "".join(staller_tokens[-3:]) if len(staller_tokens) >= 3 else ""
-        yield buffer_text
+        if buffer_text:
+            yield buffer_text
         
         # =====================================================================
         # Phase C: Soft Timeout & Stitching
@@ -386,23 +453,30 @@ class OrchestratorService:
                 agent_result = await asyncio.wait_for(agent_task, timeout=remaining)
                 logger.info(f"🪡 [Orchestrator] Stitch after staller at {time.time() - start_time:.2f}s")
                 
-                # Stitch and yield
-                stitch_result = self.stitcher_service.stitch(staller_buffer, agent_result)
-                agent_portion = stitch_result.text[len(staller_buffer):].lstrip()
-                
-                # Add model attribution if available
-                if hasattr(settings, 'gemini_smart_model'):
-                    yield f" ||MODEL:{settings.gemini_smart_model}||"
-                
-                yield agent_portion
-                
-                # Cache
+                # Stitch and yield - with error handling
                 try:
-                    await self.semantic_cache.store(user_query, stitch_result.text, user_id)
-                except Exception:
-                    pass
-                
-                return
+                    stitch_result = self.stitcher_service.stitch(staller_buffer, agent_result)
+                    agent_portion = stitch_result.text[len(staller_buffer):].lstrip()
+                    
+                    # Add model attribution if available
+                    if hasattr(settings, 'gemini_smart_model'):
+                        yield f" ||MODEL:{settings.gemini_smart_model}||"
+                    
+                    yield agent_portion if agent_portion else agent_result
+                    
+                    # Cache
+                    try:
+                        await self.semantic_cache.store(user_query, stitch_result.text, user_id)
+                    except Exception:
+                        pass
+                    
+                    return
+                    
+                except Exception as stitch_error:
+                    logger.error(f"Stitch error: {stitch_error}")
+                    # Yield agent result directly if stitching fails
+                    yield f" {agent_result}" if agent_result else "\n\n[Error processing response]"
+                    return
                 
             except asyncio.TimeoutError:
                 pass  # Continue to grace period
@@ -425,6 +499,11 @@ class OrchestratorService:
                 await self.semantic_cache.store(user_query, stitch_result.text, user_id)
             except Exception:
                 pass
+            
+            # Memory analysis for grace period stitch
+            asyncio.create_task(
+                self._run_memory_analysis(user_id, user_query, stitch_result.text)
+            )
             
             return
             
@@ -453,7 +532,38 @@ class OrchestratorService:
             system_prompt=AURA_SYSTEM_PROMPT
         )
         
+        # Memory analysis even for timeout/handoff (user message still has value)
+        asyncio.create_task(
+            self._run_memory_analysis(user_id, user_query, timeout_message)
+        )
+        
         yield f"\n\n[Task ID: {task_id} - You'll be notified when ready]"
+    
+    # =========================================================================
+    # Memory Analysis (Background Processing)
+    # =========================================================================
+    
+    async def _run_memory_analysis(
+        self,
+        user_id: str,
+        user_text: str,
+        ai_response: str
+    ) -> None:
+        """
+        Background Freudian analysis pipeline.
+        
+        Runs asynchronously after response is sent to user.
+        Updates the user's psychological profile with new insights.
+        """
+        try:
+            await self.memory_service.analyze_and_update(
+                user_id=user_id,
+                user_text=user_text,
+                ai_response=ai_response,
+                llm_service=self.llm_service
+            )
+        except Exception as e:
+            logger.error(f"Memory analysis failed for {user_id}: {e}")
     
     # =========================================================================
     # Legacy Methods (Backward Compatibility)

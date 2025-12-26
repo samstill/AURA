@@ -101,10 +101,12 @@ class AnalystService:
         self._completed_notifications: Dict[str, NotificationPayload] = {}  # Store completed results
         self._notification_handlers: list[Callable[[NotificationPayload], Awaitable[None]]] = []
         self._llm_service = None
+        self._memory_service = None
     
-    def initialize(self):
+    def initialize(self, memory_service=None):
         """Initialize the analyst service."""
         self._llm_service = llm_service
+        self._memory_service = memory_service
         logger.info("✅ Analyst Service initialized")
     
     def register_notification_handler(
@@ -296,6 +298,22 @@ Summary (max 100 characters):"""
                 
                 # Notify handlers
                 await self._notify_handlers(notification)
+                
+                # Trigger memory analysis if service is available
+                if self._memory_service and self._llm_service:
+                    try:
+                        logger.info(f"🧠 [Analyst] Triggering memory analysis for task {task_id[:8]}")
+                        # Run in background to not block notification delivery
+                        asyncio.create_task(
+                            self._memory_service.analyze_and_update(
+                                user_id=user_id,
+                                user_text=query,
+                                ai_response=result,
+                                llm_service=self._llm_service
+                            )
+                        )
+                    except Exception as mem_err:
+                        logger.error(f"Memory analysis failed for background task: {mem_err}")
                 
             except Exception as e:
                 bg_task.status = "failed"

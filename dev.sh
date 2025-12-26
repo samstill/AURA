@@ -31,31 +31,42 @@ cd "$SCRIPT_DIR"
 mkdir -p logs
 
 # -----------------------------------------------------------------------------
-# 1. Database (Docker)
+# 1. Database (Docker or Supabase Cloud)
 # -----------------------------------------------------------------------------
-echo -e "${YELLOW}[1/6]${NC} Starting Database..."
-if command -v docker-compose &> /dev/null; then
-    docker-compose up -d postgres > logs/docker.log 2>&1
-else
-    docker compose up -d postgres > logs/docker.log 2>&1
+# Load .env first to check DATABASE_URL
+if [ -f ".env" ]; then
+    source .env
 fi
 
-# Wait for DB
-echo -n "       Waiting for Postgres..."
-for i in {1..30}; do
-    if docker exec aura-postgres pg_isready -U postgres > /dev/null 2>&1; then
-        echo -e " ${GREEN}OK!${NC}"
-        DB_READY=true
-        break
+# Check if using Supabase Cloud (URL contains supabase.co)
+if [[ "$DATABASE_URL" == *"supabase.co"* ]]; then
+    echo -e "${YELLOW}[1/6]${NC} Database: ${GREEN}Supabase Cloud${NC} (skipping Docker)"
+    DB_READY=true
+else
+    echo -e "${YELLOW}[1/6]${NC} Starting Local Database..."
+    if command -v docker-compose &> /dev/null; then
+        docker-compose up -d postgres > logs/docker.log 2>&1
+    else
+        docker compose up -d postgres > logs/docker.log 2>&1
     fi
-    sleep 1
-    echo -n "."
-done
 
-if [ "$DB_READY" != "true" ]; then
-    echo -e " ${RED}Failed!${NC}"
-    echo -e "${RED}Check logs/docker.log${NC}"
-    exit 1
+    # Wait for DB
+    echo -n "       Waiting for Postgres..."
+    for i in {1..30}; do
+        if docker exec aura-postgres pg_isready -U postgres > /dev/null 2>&1; then
+            echo -e " ${GREEN}OK!${NC}"
+            DB_READY=true
+            break
+        fi
+        sleep 1
+        echo -n "."
+    done
+
+    if [ "$DB_READY" != "true" ]; then
+        echo -e " ${RED}Failed!${NC}"
+        echo -e "${RED}Check logs/docker.log${NC}"
+        exit 1
+    fi
 fi
 
 # -----------------------------------------------------------------------------

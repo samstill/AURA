@@ -17,6 +17,10 @@ from .staller_service import staller_service
 from .stitcher_service import stitcher_service
 from .analyst_service import analyst_service
 
+# Super Memory 3.0 Services
+from .memory_repository import memory_repository
+from .memory_service import memory_service
+
 __all__ = [
     "database_service", 
     "redis_service", 
@@ -31,4 +35,7 @@ __all__ = [
     "staller_service",
     "stitcher_service",
     "analyst_service",
+    # Super Memory
+    "memory_repository",
+    "memory_service",
 ]
