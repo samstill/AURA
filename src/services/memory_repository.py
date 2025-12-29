@@ -230,6 +230,11 @@ class MemoryRepository:
         # Generate embedding for the content
         embedding = await self.get_embedding(content)
         
+        # Convert embedding list to pgvector string format
+        embedding_str = None
+        if embedding:
+            embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+        
         async with self.pool.acquire() as conn:
             memory_id = await conn.fetchval(
                 """
@@ -240,7 +245,7 @@ class MemoryRepository:
                 """,
                 user_id,
                 content,
-                embedding,
+                embedding_str,
                 layer_tag,
                 source_category,
                 original_created_at or datetime.utcnow()
@@ -265,6 +270,11 @@ class MemoryRepository:
                 # Generate embedding
                 embedding = await self.get_embedding(memory['content'])
                 
+                # Convert to pgvector string format
+                embedding_str = None
+                if embedding:
+                    embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+                
                 memory_id = await conn.fetchval(
                     """
                     INSERT INTO archive_memories 
@@ -274,7 +284,7 @@ class MemoryRepository:
                     """,
                     memory['user_id'],
                     memory['content'],
-                    embedding,
+                    embedding_str,
                     memory.get('layer_tag', 'fact'),
                     memory.get('source_category')
                 )

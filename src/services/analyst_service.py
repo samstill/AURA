@@ -100,6 +100,7 @@ class AnalystService:
         self._background_tasks: Dict[str, BackgroundTask] = {}
         self._completed_notifications: Dict[str, NotificationPayload] = {}  # Store completed results
         self._notification_handlers: list[Callable[[NotificationPayload], Awaitable[None]]] = []
+        self._brief_cache: Dict[str, tuple] = {}  # Cache for secretary briefs: user_id -> (brief, timestamp)
         self._llm_service = None
         self._memory_service = None
     
@@ -448,7 +449,122 @@ Summary (max 100 characters):"""
     def store_notification(self, notification: NotificationPayload):
         """Store a completed notification for later retrieval."""
         self._completed_notifications[notification.id] = notification
+        # Invalidate brief cache when new notification arrives
+        if notification.user_id in self._brief_cache:
+            del self._brief_cache[notification.user_id]
         logger.info(f"📦 [Analyst] Stored notification {notification.id[:8]}")
+    
+    # =========================================================================
+    # Secretary Brief Feature
+    # =========================================================================
+    
+    def get_unread_notifications(self, user_id: str) -> list[Dict[str, Any]]:
+        """Get only unread notifications for a user."""
+        notifications = []
+        for notification in self._completed_notifications.values():
+            if notification.user_id == user_id and not notification.read:
+                notifications.append({
+                    "id": notification.id,
+                    "priority": notification.priority.value,
+                    "title": notification.title,
+                    "summary": notification.summary,
+                    "full_result": notification.full_result,
+                    "original_query": notification.original_query,
+                    "created_at": notification.created_at.isoformat(),
+                })
+        return sorted(notifications, key=lambda x: x["created_at"], reverse=True)
+    
+    def invalidate_brief_cache(self, user_id: str):
+        """Invalidate the secretary brief cache for a user."""
+        if user_id in self._brief_cache:
+            del self._brief_cache[user_id]
+            logger.info(f"📋 [Analyst] Brief cache invalidated for {user_id}")
+    
+    async def generate_secretary_brief(self, user_id: str) -> Dict[str, Any]:
+        """
+        Generate a secretary-style summary of all unread background tasks.
+        Uses LLM to synthesize results into an executive brief.
+        
+        Returns:
+            Dict with 'brief' (summary text), 'count' (unread count), 'items' (notification list)
+        """
+        # Check cache first (30 second TTL)
+        cache_ttl = 30  # seconds
+        if user_id in self._brief_cache:
+            cached_brief, cached_at = self._brief_cache[user_id]
+            if (datetime.utcnow() - cached_at).total_seconds() < cache_ttl:
+                logger.info(f"📋 [Analyst] Brief cache hit for {user_id}")
+                return cached_brief
+        
+        # Get unread notifications
+        unread = self.get_unread_notifications(user_id)
+        
+        if not unread:
+            return {
+                "brief": "",
+                "count": 0,
+                "items": []
+            }
+        
+        # Build context for LLM
+        task_summaries = []
+        for i, notif in enumerate(unread, 1):
+            priority_emoji = {"urgent": "🔴", "medium": "🟡", "low": "🟢"}.get(notif["priority"], "⚪")
+            task_summaries.append(
+                f"Task {i}: \"{notif['original_query']}\"\n"
+                f"   Status: {priority_emoji} {notif['priority'].upper()}\n"
+                f"   What I found: {notif['summary']}"
+            )
+        
+        tasks_context = "\n\n".join(task_summaries)
+        
+        # Generate secretary brief with LLM - conversational debrief style
+        prompt = f"""You are Aura, an AI secretary. Summarize the completed background tasks below in 2-3 natural sentences.
+
+=== COMPLETED TASKS ===
+{tasks_context}
+=== END OF TASKS ===
+
+CRITICAL - ANTI-HALLUCINATION RULES:
+1. ONLY mention names, dates, times, and events that appear EXACTLY in the data above
+2. If the data says "Follow up with Arpita" - say "Arpita", NOT "John" or "Emily" or any other name
+3. If the data says "December 30" - say "December 30", NOT "January 1" or any other date
+4. If the data says "10:00 AM" - say "10:00 AM", NOT "3:00 PM" or any other time
+5. Copy-paste event names EXACTLY - do not rephrase or invent new ones
+6. If you're unsure about something, OMIT it rather than guess
+
+FORMAT: Write 2-3 conversational sentences. Start with the main finding. Be specific.
+
+Your summary:"""
+
+        try:
+            # Use SMART model for briefs (more accurate, less hallucination)
+            response = await llm_service.get_agent_response(
+                prompt, 
+                system_instruction="You are a concise executive secretary. Be accurate and factual."
+            )
+            brief_text = response.text if hasattr(response, 'text') else str(response)
+            
+            result = {
+                "brief": brief_text.strip(),
+                "count": len(unread),
+                "items": unread
+            }
+            
+            # Cache the result
+            self._brief_cache[user_id] = (result, datetime.utcnow())
+            logger.info(f"📋 [Analyst] Generated secretary brief for {user_id}: {len(unread)} items")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Secretary brief generation failed: {e}")
+            # Return raw data without LLM summary on error
+            return {
+                "brief": f"You have {len(unread)} unread task result(s) waiting for review.",
+                "count": len(unread),
+                "items": unread
+            }
 
 
 # Singleton instance

@@ -159,11 +159,40 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            max-width: 1000px;
+            max-width: 1400px;
             width: 100%;
             margin: 0 auto;
             padding: 1.5rem 2rem;
             gap: 1.5rem;
+        }
+
+        /* Two Column Layout */
+        .main-content-wrapper {
+            display: flex;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 500px;
+        }
+
+        .main-content-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content-right {
+            width: 360px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 1100px) {
+            .main-content-wrapper {
+                flex-direction: column;
+            }
+
+            .main-content-right {
+                width: 100%;
+            }
         }
 
         /* Info Banner */
@@ -1163,6 +1192,126 @@
             }
         }
 
+        /* Secretary Brief Sidebar Panel */
+        .secretary-brief-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .secretary-brief-panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .secretary-brief-panel-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .secretary-brief-count {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .secretary-brief-content {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            overflow-y: auto;
+        }
+
+        .secretary-brief-text {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .secretary-brief-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 2rem 1rem;
+        }
+
+        .secretary-brief-empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .secretary-brief-task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .secretary-brief-task-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secretary-brief-task-item:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .secretary-brief-task-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .secretary-brief-task-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            flex: 1;
+        }
+
+        .secretary-brief-task-priority {
+            font-size: 0.9rem;
+        }
+
+        .secretary-brief-task-summary {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .secretary-brief-btn {
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secretary-brief-btn:hover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
         /* =====================================================================
            MEMORY PANEL STYLES
            ===================================================================== */
@@ -1402,22 +1551,6 @@
             <span>DEV MODE</span>
         </div>
         <div class="header-right">
-            <!-- Notification Bell -->
-            <div style="position: relative;">
-                <button class="notification-btn" id="notificationBtn" onclick="toggleNotificationPanel()">
-                    🔔
-                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-                </button>
-                <div class="notification-panel" id="notificationPanel">
-                    <div class="notification-panel-header">
-                        <h3>🔔 Notifications</h3>
-                        <button class="clear-notifications" onclick="clearNotifications()">Clear all</button>
-                    </div>
-                    <div class="notification-list" id="notificationList">
-                        <div class="notification-empty">No notifications yet</div>
-                    </div>
-                </div>
-            </div>
             <div class="tab-toggle">
                 <button class="tab-btn active" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
                 <button class="tab-btn" id="tabVoice" onclick="switchTab('voice')">🎤 Voice</button>
@@ -1449,53 +1582,82 @@
             </span>
         </div>
 
-        <div class="chat-container">
-            <div class="chat-header">
-                <h2>💬 Chat with Aura</h2>
-                <div class="route-info">
-                    <div class="route-chip fast">⚡ FAST = Flash</div>
-                    <div class="route-chip smart">🧠 SMART = Pro</div>
-                    <button onclick="clearChat()"
-                        style="margin-left: 1rem; padding: 0.4rem 0.8rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4); color: #f87171; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🗑️
-                        Clear</button>
-                </div>
-            </div>
+        <!-- Two Column Layout: Chat (Left) + Secretary Brief (Right) -->
+        <div class="main-content-wrapper">
+            <!-- Left Column: Chat -->
+            <div class="main-content-left">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h2>💬 Chat with Aura</h2>
+                        <div class="route-info">
+                            <div class="route-chip fast">⚡ FAST = Flash</div>
+                            <div class="route-chip smart">🧠 SMART = Pro</div>
+                            <button onclick="clearChat()"
+                                style="margin-left: 1rem; padding: 0.4rem 0.8rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4); color: #f87171; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🗑️
+                                Clear</button>
+                        </div>
+                    </div>
 
-            <div class="chat-messages" id="chatMessages">
-                <div class="empty-state" id="emptyState">
-                    <div class="empty-state-icon">🌟</div>
-                    <h3>Test the Hybrid Brain</h3>
-                    <p>Send a message to see Aura's neural router in action. Simple queries use Flash ⚡, complex tasks
-                        use Pro 🧠</p>
-                    <div class="quick-actions">
-                        <button class="quick-btn fast" onclick="sendQuickMessage('Hello!')">👋 Hello!</button>
-                        <button class="quick-btn fast" onclick="sendQuickMessage('Tell me a joke')">😄 Tell a
-                            joke</button>
-                        <button class="quick-btn fast" onclick="sendQuickMessage('What can you do?')">❓ What can you
-                            do?</button>
-                        <button class="quick-btn smart" onclick="sendQuickMessage('Check my calendar for tomorrow')">📅
-                            Check calendar</button>
-                        <button class="quick-btn smart" onclick="sendQuickMessage('Search for latest AI news')">🔍
-                            Search web</button>
-                        <button class="quick-btn smart" onclick="sendQuickMessage('Send an email to my team')">📧 Send
-                            email</button>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-state-icon">🌟</div>
+                            <h3>Test the Hybrid Brain</h3>
+                            <p>Send a message to see Aura's neural router in action. Simple queries use Flash ⚡, complex
+                                tasks
+                                use Pro 🧠</p>
+                            <div class="quick-actions">
+                                <button class="quick-btn fast" onclick="sendQuickMessage('Hello!')">👋 Hello!</button>
+                                <button class="quick-btn fast" onclick="sendQuickMessage('Tell me a joke')">😄 Tell a
+                                    joke</button>
+                                <button class="quick-btn fast" onclick="sendQuickMessage('What can you do?')">❓ What can
+                                    you
+                                    do?</button>
+                                <button class="quick-btn smart"
+                                    onclick="sendQuickMessage('Check my calendar for tomorrow')">📅
+                                    Check calendar</button>
+                                <button class="quick-btn smart"
+                                    onclick="sendQuickMessage('Search for latest AI news')">🔍
+                                    Search web</button>
+                                <button class="quick-btn smart"
+                                    onclick="sendQuickMessage('Send an email to my team')">📧 Send
+                                    email</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <div class="input-wrapper">
+                            <textarea class="chat-input" id="messageInput"
+                                placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+                                rows="1"></textarea>
+                        </div>
+                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                            Send
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div class="chat-input-area">
-                <div class="input-wrapper">
-                    <textarea class="chat-input" id="messageInput"
-                        placeholder="Type a message... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+            <!-- Right Column: Secretary Brief Panel -->
+            <div class="main-content-right">
+                <div class="secretary-brief-panel" id="secretaryBriefPanel">
+                    <div class="secretary-brief-panel-header">
+                        <h3>📋 Secretary Brief <span class="secretary-brief-count" id="briefCount">0</span></h3>
+                        <button class="secretary-brief-btn" onclick="loadSecretaryBrief()">🔄</button>
+                    </div>
+                    <div class="secretary-brief-content" id="secretaryBriefContent">
+                        <div class="secretary-brief-empty">
+                            <div class="secretary-brief-empty-icon">✨</div>
+                            <div>No pending tasks</div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem;">Background tasks will appear here</div>
+                        </div>
+                    </div>
                 </div>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-                    Send
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
-                </button>
             </div>
         </div>
 
@@ -1806,6 +1968,8 @@
                 isStreaming = false;
                 sendBtn.disabled = false;
                 scrollToBottom();
+                // Auto-refresh secretary brief after every chat response
+                loadSecretaryBrief();
             }
         }
 
@@ -1896,6 +2060,12 @@
             document.querySelector('.chat-container').style.display = tab === 'chat' ? 'flex' : 'none';
             document.getElementById('voiceContainer').classList.toggle('active', tab === 'voice');
             document.getElementById('memoryContainer').classList.toggle('active', tab === 'memory');
+
+            // Show secretary brief panel only on chat tab
+            const briefPanel = document.querySelector('.main-content-right');
+            if (briefPanel) {
+                briefPanel.style.display = tab === 'chat' ? 'block' : 'none';
+            }
 
             // Update info banner
             const endpoints = {
@@ -2710,6 +2880,129 @@
             }
             return null;
         }
+        // =====================================================================
+        // SECRETARY BRIEF FUNCTIONS
+        // =====================================================================
+
+        async function loadSecretaryBrief() {
+            const content = document.getElementById('secretaryBriefContent');
+            const briefCount = document.getElementById('briefCount');
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/chat/brief?user_id=test-user`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.count > 0) {
+                    briefCount.textContent = data.count;
+
+                    // Build task list HTML
+                    let html = '';
+
+                    // Show the LLM brief summary
+                    if (data.brief) {
+                        html += `<div class="secretary-brief-text">${data.brief}</div>`;
+                    }
+
+                    // Show individual task items
+                    if (data.items && data.items.length > 0) {
+                        html += '<div class="secretary-brief-task-list">';
+                        for (const item of data.items) {
+                            const priorityEmoji = {
+                                'urgent': '🔴',
+                                'medium': '🟡',
+                                'low': '🟢'
+                            }[item.priority] || '⚪';
+
+                            html += `
+                                <div class="secretary-brief-task-item" onclick="viewNotificationDetails('${item.id}')">
+                                    <div class="secretary-brief-task-header">
+                                        <span class="secretary-brief-task-priority">${priorityEmoji}</span>
+                                        <span class="secretary-brief-task-title">${item.title}</span>
+                                    </div>
+                                    <div class="secretary-brief-task-summary">${item.summary}</div>
+                                </div>
+                            `;
+                        }
+                        html += '</div>';
+                    }
+
+                    content.innerHTML = html;
+                } else {
+                    briefCount.textContent = '0';
+                    content.innerHTML = `
+                        <div class="secretary-brief-empty">
+                            <div class="secretary-brief-empty-icon">✨</div>
+                            <div>No pending tasks</div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem;">Background tasks will appear here</div>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.log('Secretary brief not available:', error.message);
+                content.innerHTML = `
+                    <div class="secretary-brief-empty">
+                        <div class="secretary-brief-empty-icon">✨</div>
+                        <div>No pending tasks</div>
+                        <div style="font-size: 0.8rem; margin-top: 0.5rem;">Background tasks will appear here</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function viewNotificationDetails(taskId) {
+            // Fetch full notification details and display in chat
+            try {
+                const response = await fetch(`${API_URL}/api/v1/chat/notifications/${taskId}`);
+                if (!response.ok) {
+                    console.error('Failed to fetch notification:', response.status);
+                    return;
+                }
+
+                const data = await response.json();
+
+                // Hide empty state
+                const emptyState = document.getElementById('emptyState');
+                if (emptyState) emptyState.style.display = 'none';
+
+                // Add the original query as user message
+                const userMsg = document.createElement('div');
+                userMsg.className = 'message user';
+                userMsg.innerHTML = `<div style="opacity: 0.7; font-size: 0.8rem; margin-bottom: 0.5rem;">📋 Background Task Result</div>${data.original_query}`;
+                chatMessages.appendChild(userMsg);
+
+                // Add the result as assistant message
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'message assistant';
+                assistantMsg.innerHTML = `
+                    <div>${formatText(data.full_result || data.summary)}</div>
+                    <div class="message-meta">
+                        <span class="route-badge smart">🔄 BACKGROUND</span>
+                    </div>
+                `;
+                chatMessages.appendChild(assistantMsg);
+                scrollToBottom();
+
+                // Mark as read
+                await fetch(`${API_URL}/api/v1/chat/notifications/${taskId}/read?user_id=test-user`, { method: 'POST' });
+
+                // Refresh the secretary brief
+                loadSecretaryBrief();
+
+            } catch (error) {
+                console.error('Error viewing notification:', error);
+            }
+        }
+
+        // Load secretary brief on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSecretaryBrief();
+        });
 
 
     </script>

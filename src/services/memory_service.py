@@ -24,7 +24,9 @@ from schemas.memory_schemas import (
     ArchiveMemory,
     ArchiveSearchResult,
     ProfileMergeResult,
-    LayerTag
+    LayerTag,
+    MemoryOperation,
+    MemoryOperationAction
 )
 from services.memory_repository import memory_repository
 from config import settings
@@ -255,28 +257,45 @@ class MemoryService:
         for fact in (analysis.unconscious or []):
             new_facts["core_beliefs"].append(fact)
         
-        # Use LLM to consolidate the profile
+        # === STEP 1: Add ALL new facts to profile first ===
+        for fact in new_facts["identity"]:
+            if fact and fact not in profile.identity:
+                profile.identity.append(fact)
+                logger.info(f"➕ Added to identity: {fact[:50]}...")
+        for fact in new_facts["preferences"]:
+            if fact and fact not in profile.preferences:
+                profile.preferences.append(fact)
+                logger.info(f"➕ Added to preferences: {fact[:50]}...")
+        for fact in new_facts["core_beliefs"]:
+            if fact and fact not in profile.core_beliefs:
+                profile.core_beliefs.append(fact)
+                logger.info(f"➕ Added to core_beliefs: {fact[:50]}...")
+        for fact in new_facts["behavioral_patterns"]:
+            if fact and fact not in profile.behavioral_patterns:
+                profile.behavioral_patterns.append(fact)
+                logger.info(f"➕ Added to behavioral_patterns: {fact[:50]}...")
+        
+        # === STEP 2: Scan entire profile and demote low-priority facts ===
         try:
-            consolidated = await self._consolidate_profile_with_llm(
-                profile, new_facts, llm
+            relevance = await self._evaluate_profile_relevance(
+                profile, {}, user_id, llm  # Empty new_facts since already added
             )
-            if consolidated:
-                profile = consolidated
+            
+            # Demote low-priority facts to archive
+            if relevance.get("demote_to_archive"):
+                profile = await self._demote_facts_to_archive(
+                    profile, relevance["demote_to_archive"], user_id
+                )
+                archived_facts.extend([
+                    ArchiveMemory(user_id=user_id, content=item.get("fact", ""))
+                    for item in relevance["demote_to_archive"]
+                ])
+                logger.info(f"📦 Demoted {len(relevance['demote_to_archive'])} low-priority facts to archive")
+            
+            logger.info("✅ Memory flow complete: Add first, then demote")
+            
         except Exception as e:
-            logger.warning(f"LLM consolidation failed, using append fallback: {e}")
-            # Fallback to simple append
-            for fact in new_facts["identity"]:
-                if fact not in profile.identity:
-                    profile.identity.append(fact)
-            for fact in new_facts["preferences"]:
-                if fact not in profile.preferences:
-                    profile.preferences.append(fact)
-            for fact in new_facts["core_beliefs"]:
-                if fact not in profile.core_beliefs:
-                    profile.core_beliefs.append(fact)
-            for fact in new_facts["behavioral_patterns"]:
-                if fact not in profile.behavioral_patterns:
-                    profile.behavioral_patterns.append(fact)
+            logger.warning(f"Relevance scan failed (facts still added): {e}")
         
         # Emotional baseline
         if analysis.emotional and analysis.emotional != "neutral":
@@ -302,65 +321,135 @@ class MemoryService:
         user_id: str
     ) -> tuple[UserProfile, List[ArchiveMemory]]:
         """
-        Prune profile to stay under word limit.
+        Smart pruning: LLM checks if oldest facts are still relevant.
         
-        Strategy: Remove oldest/least relevant items from each section.
+        If relevant: Move to end of list (refresh)
+        If not relevant: Archive
         """
+        from services.llm_service import llm_service
+        
         archived = []
-        target_words = int(self.MAX_PROFILE_WORDS * 0.8)  # Aim for 80% capacity
+        target_words = int(self.MAX_PROFILE_WORDS * 0.8)
         
-        # Prune order: preferences -> behavioral_patterns -> core_beliefs
-        # (identity and active_projects are most important)
+        # Collect all pruneable facts with their category
+        pruneable = []
+        for fact in profile.preferences:
+            pruneable.append({"category": "preferences", "fact": fact})
+        for fact in profile.behavioral_patterns:
+            pruneable.append({"category": "behavioral_patterns", "fact": fact})
+        for fact in profile.core_beliefs:
+            pruneable.append({"category": "core_beliefs", "fact": fact})
         
-        while profile.word_count() > target_words:
-            # Try to prune preferences first
-            if len(profile.preferences) > 3:
-                pruned = profile.preferences.pop(0)  # Remove oldest
+        if not pruneable:
+            return profile, archived
+        
+        # Ask LLM which facts are no longer relevant
+        try:
+            irrelevant = await self._identify_irrelevant_facts(pruneable, llm_service)
+            
+            # Process irrelevant facts (archive them)
+            for item in irrelevant:
+                category = item.get("category", "")
+                fact = item.get("fact", "")
+                
+                target_list = {
+                    'preferences': profile.preferences,
+                    'behavioral_patterns': profile.behavioral_patterns,
+                    'core_beliefs': profile.core_beliefs,
+                }.get(category)
+                
+                if target_list and fact in target_list:
+                    target_list.remove(fact)
+                    archived.append(ArchiveMemory(
+                        user_id=user_id,
+                        content=fact,
+                        layer_tag=LayerTag.PREFERENCE,
+                        source_category=category
+                    ))
+                    logger.info(f"🗑️ Smart prune: archived '{fact[:40]}...'")
+            
+            # If still over capacity, fall back to oldest-first
+            while profile.word_count() > target_words:
+                if len(profile.preferences) > 3:
+                    pruned = profile.preferences.pop(0)
+                elif len(profile.behavioral_patterns) > 3:
+                    pruned = profile.behavioral_patterns.pop(0)
+                elif len(profile.core_beliefs) > 2:
+                    pruned = profile.core_beliefs.pop(0)
+                else:
+                    break
+                    
                 archived.append(ArchiveMemory(
                     user_id=user_id,
                     content=pruned,
                     layer_tag=LayerTag.PREFERENCE,
-                    source_category="preferences"
+                    source_category="fallback"
                 ))
-                continue
-            
-            # Then behavioral patterns
-            if len(profile.behavioral_patterns) > 3:
-                pruned = profile.behavioral_patterns.pop(0)
-                archived.append(ArchiveMemory(
-                    user_id=user_id,
-                    content=pruned,
-                    layer_tag=LayerTag.SUBCONSCIOUS,
-                    source_category="behavioral_patterns"
-                ))
-                continue
-            
-            # Then core beliefs (keep at least 2)
-            if len(profile.core_beliefs) > 2:
-                pruned = profile.core_beliefs.pop(0)
-                archived.append(ArchiveMemory(
-                    user_id=user_id,
-                    content=pruned,
-                    layer_tag=LayerTag.UNCONSCIOUS,
-                    source_category="core_beliefs"
-                ))
-                continue
-            
-            # Completed projects can be archived
-            if len(profile.active_projects) > 5:
-                pruned = profile.active_projects.pop(0)
-                archived.append(ArchiveMemory(
-                    user_id=user_id,
-                    content=pruned,
-                    layer_tag=LayerTag.PROJECT,
-                    source_category="active_projects"
-                ))
-                continue
-            
-            # If we can't prune more, break
-            break
+                
+        except Exception as e:
+            logger.warning(f"Smart pruning failed, using oldest-first: {e}")
+            # Fallback to oldest-first
+            while profile.word_count() > target_words:
+                if len(profile.preferences) > 3:
+                    pruned = profile.preferences.pop(0)
+                    archived.append(ArchiveMemory(user_id=user_id, content=pruned, layer_tag=LayerTag.PREFERENCE))
+                elif len(profile.behavioral_patterns) > 3:
+                    pruned = profile.behavioral_patterns.pop(0)
+                    archived.append(ArchiveMemory(user_id=user_id, content=pruned, layer_tag=LayerTag.SUBCONSCIOUS))
+                else:
+                    break
         
         return profile, archived
+    
+    async def _identify_irrelevant_facts(
+        self,
+        facts: List[dict],
+        llm_service
+    ) -> List[dict]:
+        """
+        Ask LLM which facts are no longer secretary-relevant.
+        """
+        system_prompt = """You are AURA's memory curator.
+
+Review these facts and identify which are NO LONGER RELEVANT:
+
+Irrelevant = 
+- Outdated information (old preferences that may have changed)
+- One-time events (trips, meetings from the past)
+- Temporary states that are no longer true
+
+Still Relevant = 
+- Ongoing preferences (coffee, meeting times)
+- Current job/projects
+- Regular routines
+
+Return JSON: {"irrelevant": [{"category": "...", "fact": "..."}]}
+Return empty if all are still relevant: {"irrelevant": []}"""
+
+        prompt = f"Facts to review: {json.dumps(facts)}"
+
+        try:
+            response = llm_service.get_reflex_response(
+                user_query=prompt,
+                system_prompt=system_prompt,
+                include_model_header=False
+            )
+            
+            full_response = ""
+            async for chunk in response:
+                full_response += chunk
+            
+            json_start = full_response.find('{')
+            json_end = full_response.rfind('}') + 1
+            
+            if json_start >= 0 and json_end > json_start:
+                data = json.loads(full_response[json_start:json_end])
+                return data.get("irrelevant", [])
+            
+            return []
+        except Exception as e:
+            logger.error(f"Irrelevant fact detection failed: {e}")
+            return []
     
     async def _archive_facts(self, facts: List[ArchiveMemory]) -> None:
         """Archive pruned facts to cold storage."""
@@ -392,50 +481,46 @@ class MemoryService:
         ]
         return any(kw in fact.lower() for kw in pref_keywords)
     
-    async def _consolidate_profile_with_llm(
+    async def _evaluate_profile_relevance(
         self,
         profile: UserProfile,
         new_facts: dict,
+        user_id: str,
         llm_service
-    ) -> Optional[UserProfile]:
+    ) -> dict:
         """
-        Use LLM to consolidate profile, removing duplicates and resolving conflicts.
+        Scan profile for low-priority facts that should be demoted to archive.
         
-        The LLM sees the full current profile + new facts and outputs a clean version.
+        Called AFTER new facts are added. Identifies what to demote.
         """
-        system_prompt = """You are AURA's profile consolidation agent - a personal AI secretary.
+        system_prompt = """You are AURA's memory curator - a personal AI secretary.
 
-Consolidate user facts into a clean profile that helps a secretary serve their employer.
+Scan the profile and identify LOW PRIORITY facts to move to archive.
 
-RULES:
-1. DEDUPLICATE: Merge similar facts ("Name is Harshit" + "Harshit is the user" → "User's name is Harshit")
-2. RESOLVE CONFLICTS: Newer facts override older (changed preferences)
-3. BE CONCISE: One clear sentence per fact
-4. LIMIT SIZE: Max 5 items per category
-5. SECRETARY FOCUS: Keep facts useful for scheduling, communication, preferences
+HIGH PRIORITY (KEEP in profile):
+- Identity: Name, job, projects
+- Scheduling: Meeting preferences, work hours
+- Preferences: Beverages, communication style
+- Routines: Regular schedule patterns
 
-Return ONLY valid JSON:
-{
-    "identity": ["Name, job title, projects"],
-    "preferences": ["Meeting times, beverage, communication style"], 
-    "core_beliefs": ["Work priorities, decision patterns"],
-    "behavioral_patterns": ["Daily routines, work schedule patterns"]
-}"""
+LOW PRIORITY (DEMOTE to archive):
+- One-time events ("went to Goa", "visited Paris")
+- Old/outdated information
+- Historical trivia not affecting scheduling
+- Non-work opinions
 
-        # Build the prompt with current profile and new facts
+Return ONLY facts to demote as JSON:
+{"demote_to_archive": [{"category": "preferences", "fact": "Visited Goa last year"}]}
+
+If nothing to demote, return: {"demote_to_archive": []}"""
+
         prompt = f"""CURRENT PROFILE:
-- Identity: {profile.identity[:5]}
-- Preferences: {profile.preferences[:5]}
-- Work Patterns: {profile.core_beliefs[:5]}  
-- Routines: {profile.behavioral_patterns[:5]}
+- identity: {profile.identity}
+- preferences: {profile.preferences}
+- core_beliefs: {profile.core_beliefs}
+- behavioral_patterns: {profile.behavioral_patterns}
 
-NEW FACTS (NEWER = override conflicts):
-- Identity: {new_facts.get('identity', [])}
-- Preferences: {new_facts.get('preferences', [])}
-- Work Patterns: {new_facts.get('core_beliefs', [])}
-- Routines: {new_facts.get('behavioral_patterns', [])}
-
-Output consolidated secretary-focused profile as JSON."""
+Which facts are LOW PRIORITY and should be moved to archive? Return JSON."""
 
         try:
             response = llm_service.get_reflex_response(
@@ -456,25 +541,222 @@ Output consolidated secretary-focused profile as JSON."""
                 json_str = full_response[json_start:json_end]
                 data = json.loads(json_str)
                 
-                # Update profile with consolidated data
-                if 'identity' in data:
-                    profile.identity = data['identity'][:5]
-                if 'preferences' in data:
-                    profile.preferences = data['preferences'][:5]
-                if 'core_beliefs' in data:
-                    profile.core_beliefs = data['core_beliefs'][:5]
-                if 'behavioral_patterns' in data:
-                    profile.behavioral_patterns = data['behavioral_patterns'][:5]
-                
-                logger.info("✅ Profile consolidated via LLM")
-                return profile
+                demotions = data.get("demote_to_archive", [])
+                logger.info(f"📊 Relevance scan: {len(demotions)} facts to demote")
+                return {"demote_to_archive": demotions}
             
-            logger.warning("No valid JSON in consolidation response")
-            return None
+            logger.warning("No valid JSON in relevance response")
+            return {"demote_to_archive": []}
             
         except Exception as e:
-            logger.error(f"Profile consolidation failed: {e}")
-            return None
+            logger.error(f"Relevance evaluation failed: {e}")
+            return {"demote_to_archive": []}
+    
+    async def _demote_facts_to_archive(
+        self,
+        profile: UserProfile,
+        demotions: List[dict],
+        user_id: str
+    ) -> UserProfile:
+        """
+        Move demoted facts from profile to archive.
+        """
+        category_map = {
+            'identity': profile.identity,
+            'preferences': profile.preferences,
+            'core_beliefs': profile.core_beliefs,
+            'behavioral_patterns': profile.behavioral_patterns
+        }
+        
+        for item in demotions:
+            category = item.get('category', '')
+            fact = item.get('fact', '')
+            
+            if not category or not fact:
+                continue
+            
+            target_list = category_map.get(category)
+            if target_list and fact in target_list:
+                # Remove from profile
+                target_list.remove(fact)
+                
+                # Add to archive
+                try:
+                    await self.repository.insert_archive_memory(
+                        user_id=user_id,
+                        content=fact,
+                        layer_tag="demoted",
+                        source_category=category
+                    )
+                    logger.info(f"📦 Demoted to archive: {fact[:50]}...")
+                except Exception as e:
+                    logger.error(f"Failed to archive demoted fact: {e}")
+        
+        return profile
+    
+    async def _add_facts_to_archive(
+        self,
+        facts: List[dict],
+        user_id: str
+    ):
+        """
+        Add low-priority new facts directly to archive.
+        """
+        for item in facts:
+            category = item.get('category', 'general')
+            fact = item.get('fact', '')
+            
+            if not fact:
+                continue
+            
+            try:
+                await self.repository.insert_archive_memory(
+                    user_id=user_id,
+                    content=fact,
+                    layer_tag="low_priority",
+                    source_category=category
+                )
+                logger.info(f"📥 Added to archive (low priority): {fact[:50]}...")
+            except Exception as e:
+                logger.error(f"Failed to add to archive: {e}")
+    
+    async def _get_profile_operations(
+        self,
+        profile: UserProfile,
+        new_facts: dict,
+        llm_service
+    ) -> List[MemoryOperation]:
+        """
+        Use LLM to determine surgical operations needed to update the profile.
+        
+        Returns a list of ADD/UPDATE/REMOVE operations instead of a full new profile.
+        """
+        system_prompt = """You are AURA's memory surgeon. Your job is to surgically update a user profile.
+
+Given the CURRENT profile and NEW facts, output a JSON list of operations.
+
+OPERATION TYPES:
+- {"action": "ADD", "category": "...", "fact": "..."} - Add a new fact
+- {"action": "UPDATE", "category": "...", "old_fact": "...", "fact": "..."} - Replace an existing fact
+- {"action": "REMOVE", "category": "...", "fact": "..."} - Remove an outdated/contradicted fact
+
+CATEGORIES: identity, preferences, core_beliefs, behavioral_patterns
+
+RULES:
+1. ADD only genuinely new information not already in profile
+2. UPDATE when a new fact refines/contradicts an existing one (include old_fact)
+3. REMOVE when something is explicitly negated ("don't like X anymore")
+4. If no changes needed, return: {"operations": []}
+5. Deduplicate: Don't add if similar fact exists
+6. Max 5 items per category - if adding would exceed, also REMOVE oldest
+
+Return ONLY valid JSON: {"operations": [...]}"""
+
+        prompt = f"""CURRENT PROFILE:
+- identity: {profile.identity[:5]}
+- preferences: {profile.preferences[:5]}
+- core_beliefs: {profile.core_beliefs[:5]}
+- behavioral_patterns: {profile.behavioral_patterns[:5]}
+
+NEW FACTS TO INTEGRATE:
+- identity: {new_facts.get('identity', [])}
+- preferences: {new_facts.get('preferences', [])}
+- core_beliefs: {new_facts.get('core_beliefs', [])}
+- behavioral_patterns: {new_facts.get('behavioral_patterns', [])}
+
+What operations are needed? Return JSON."""
+
+        try:
+            response = llm_service.get_reflex_response(
+                user_query=prompt,
+                system_prompt=system_prompt,
+                include_model_header=False
+            )
+            
+            full_response = ""
+            async for chunk in response:
+                full_response += chunk
+            
+            # Parse JSON
+            json_start = full_response.find('{')
+            json_end = full_response.rfind('}') + 1
+            
+            if json_start >= 0 and json_end > json_start:
+                json_str = full_response[json_start:json_end]
+                data = json.loads(json_str)
+                
+                operations = []
+                for op_data in data.get('operations', []):
+                    try:
+                        op = MemoryOperation(
+                            action=MemoryOperationAction(op_data.get('action', 'ADD')),
+                            category=op_data.get('category', 'identity'),
+                            fact=op_data.get('fact', ''),
+                            old_fact=op_data.get('old_fact')
+                        )
+                        operations.append(op)
+                    except Exception as e:
+                        logger.warning(f"Skipping invalid operation: {op_data} - {e}")
+                
+                logger.info(f"🔧 Got {len(operations)} profile operations")
+                return operations
+            
+            logger.warning("No valid JSON in operations response")
+            return []
+            
+        except Exception as e:
+            logger.error(f"Profile operations failed: {e}")
+            return []
+    
+    def _apply_operations(
+        self,
+        profile: UserProfile,
+        operations: List[MemoryOperation]
+    ) -> UserProfile:
+        """
+        Apply surgical operations to the profile.
+        
+        Executes ADD, UPDATE, REMOVE operations on the appropriate categories.
+        """
+        category_map = {
+            'identity': profile.identity,
+            'preferences': profile.preferences,
+            'core_beliefs': profile.core_beliefs,
+            'behavioral_patterns': profile.behavioral_patterns
+        }
+        
+        for op in operations:
+            target_list = category_map.get(op.category)
+            if target_list is None:
+                logger.warning(f"Unknown category: {op.category}")
+                continue
+            
+            if op.action == MemoryOperationAction.ADD:
+                # Check for duplicates before adding
+                if op.fact not in target_list:
+                    target_list.append(op.fact)
+                    logger.debug(f"➕ ADD to {op.category}: {op.fact[:50]}...")
+                    # No item cap - rely on relevance-based demotion + 2000 word smart pruning
+            
+            elif op.action == MemoryOperationAction.UPDATE:
+                # Find and replace old fact
+                if op.old_fact and op.old_fact in target_list:
+                    idx = target_list.index(op.old_fact)
+                    target_list[idx] = op.fact
+                    logger.debug(f"✏️ UPDATE {op.category}: '{op.old_fact[:30]}' -> '{op.fact[:30]}'")
+                else:
+                    # Old fact not found, just add the new one
+                    if op.fact not in target_list:
+                        target_list.append(op.fact)
+                        logger.debug(f"➕ UPDATE->ADD to {op.category}: {op.fact[:50]}...")
+            
+            elif op.action == MemoryOperationAction.REMOVE:
+                if op.fact in target_list:
+                    target_list.remove(op.fact)
+                    logger.debug(f"➖ REMOVE from {op.category}: {op.fact[:50]}...")
+        
+        logger.info(f"✅ Applied {len(operations)} operations to profile")
+        return profile
     
     # =========================================================================
     # Deep Recall Operations

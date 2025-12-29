@@ -163,9 +163,24 @@ async def get_notification(task_id: str):
 
 
 @router.post("/notifications/{task_id}/read")
-async def mark_notification_read(task_id: str):
-    """Mark a notification as read."""
+async def mark_notification_read(task_id: str, user_id: str = "test-user"):
+    """Mark a notification as read and invalidate the secretary brief cache."""
     success = analyst_service.mark_notification_read(task_id)
     if not success:
         raise HTTPException(status_code=404, detail="Notification not found")
+    # Invalidate the brief cache so next refresh generates a fresh summary
+    analyst_service.invalidate_brief_cache(user_id)
     return {"status": "ok"}
+
+
+@router.get("/brief")
+async def get_secretary_brief(user_id: str = "test-user"):
+    """
+    Get a secretary-style summary of all unread background task results.
+    
+    Returns:
+        - brief: LLM-generated summary of pending items
+        - count: Number of unread notifications
+        - items: List of unread notification details
+    """
+    return await analyst_service.generate_secretary_brief(user_id)

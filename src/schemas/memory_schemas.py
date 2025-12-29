@@ -28,6 +28,25 @@ class LayerTag(str, Enum):
     PROJECT = "project"           # Projects
 
 
+class MemoryOperationAction(str, Enum):
+    """Actions for surgical memory updates."""
+    ADD = "ADD"
+    UPDATE = "UPDATE"
+    REMOVE = "REMOVE"
+
+
+class MemoryOperation(BaseModel):
+    """
+    A single surgical operation to apply to a user profile.
+    
+    Used for targeted updates instead of full profile regeneration.
+    """
+    action: MemoryOperationAction
+    category: str  # identity, preferences, core_beliefs, behavioral_patterns
+    fact: str
+    old_fact: Optional[str] = None  # Only for UPDATE action
+
+
 class EmotionalState(str, Enum):
     """Current emotional baseline."""
     POSITIVE = "positive"
