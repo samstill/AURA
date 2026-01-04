@@ -6,6 +6,7 @@
 /// - Outfit (The Inviter): Geometric with "Baby Face" circular dots
 /// - Manrope (The Narrator): Neutral and legible
 /// - Jura (The Protector): Wide structure with soft terminals
+library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

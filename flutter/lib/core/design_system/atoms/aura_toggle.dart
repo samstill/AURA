@@ -9,11 +9,13 @@
 /// - State Change: Thumb stretches wider (24 -> 36)
 /// - Movement: Slides to other side with overshoot curve
 /// - Settling: Snaps back to circle
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/aura_colors.dart';
+import '../motion/aura_motion.dart';
 
 class AuraToggle extends StatefulWidget {
   final bool value;
@@ -44,7 +46,7 @@ class _AuraToggleState extends State<AuraToggle> {
     widget.onChanged(!widget.value);
 
     // 3. End Morph (Snap back to circle) after slide completes
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(AuraMotion.standard); // Was: 300ms
     if (mounted) setState(() => _isMorphing = false);
   }
 
@@ -62,22 +64,22 @@ class _AuraToggleState extends State<AuraToggle> {
     return GestureDetector(
       onTap: _handleTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: AuraMotion.standard, // Was: 300ms
         width: trackWidth,
         height: trackHeight,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(99),
           color: widget.value
-              ? aura.bgSecondary.withOpacity(0.5)
-              : aura.bgSecondary.withOpacity(0.3),
+              ? aura.bgSecondary.withValues(alpha: 0.5)
+              : aura.bgSecondary.withValues(alpha: 0.3),
           border: Border.all(
             color: widget.value
-                ? AuraColors.tether.withOpacity(0.3)
+                ? AuraColors.tether.withValues(alpha: 0.3)
                 : aura.glassBorder,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -86,7 +88,7 @@ class _AuraToggleState extends State<AuraToggle> {
         child: Stack(
           children: [
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
+              duration: AuraMotion.deliberate, // Was: 400ms
               // CSS Curve: cubic-bezier(0.34, 1.56, 0.64, 1) -> Overshoot
               curve: const Cubic(0.34, 1.56, 0.64, 1.0),
               left: widget.value
@@ -98,7 +100,7 @@ class _AuraToggleState extends State<AuraToggle> {
               top: padding,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
+                curve: AuraMotion.easeOut, // Was: Curves.easeInOut
                 height: thumbSize,
                 // Liquid Physics: Stretch width when moving
                 width: _isMorphing ? thumbSize + stretchAmount : thumbSize,
@@ -108,8 +110,8 @@ class _AuraToggleState extends State<AuraToggle> {
                   boxShadow: [
                     BoxShadow(
                       color: widget.value
-                          ? AuraColors.tether.withOpacity(0.3)
-                          : Colors.black.withOpacity(0.2),
+                          ? AuraColors.tether.withValues(alpha: 0.3)
+                          : Colors.black.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -163,7 +165,7 @@ class _AuraSwitchState extends State<AuraSwitch> {
     HapticFeedback.lightImpact();
     setState(() => _isMorphing = true);
     widget.onChanged(!widget.value);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(AuraMotion.standard); // Was: 300ms
     if (mounted) setState(() => _isMorphing = false);
   }
 
@@ -181,24 +183,24 @@ class _AuraSwitchState extends State<AuraSwitch> {
     return GestureDetector(
       onTap: _handleTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: AuraMotion.standard, // Was: 300ms
         width: trackWidth,
         height: trackHeight,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(99),
           color: widget.value
-              ? activeColor.withOpacity(0.3)
-              : aura.bgSecondary.withOpacity(0.3),
+              ? activeColor.withValues(alpha: 0.3)
+              : aura.bgSecondary.withValues(alpha: 0.3),
           border: Border.all(
             color: widget.value
-                ? activeColor.withOpacity(0.5)
+                ? activeColor.withValues(alpha: 0.5)
                 : aura.glassBorder,
           ),
         ),
         child: Stack(
           children: [
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
+              duration: AuraMotion.deliberate, // Was: 400ms
               curve: const Cubic(0.34, 1.56, 0.64, 1.0),
               left: widget.value
                   ? trackWidth -
@@ -218,8 +220,8 @@ class _AuraSwitchState extends State<AuraSwitch> {
                   boxShadow: [
                     BoxShadow(
                       color: widget.value
-                          ? activeColor.withOpacity(0.4)
-                          : Colors.black.withOpacity(0.2),
+                          ? activeColor.withValues(alpha: 0.4)
+                          : Colors.black.withValues(alpha: 0.2),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),

@@ -1,0 +1,7 @@
+flutter_launcher_icons:
+  android: "mipmap"
+  ios: true
+  image_path: "assets/icons/launcher_icon.png"
+  min_sdk_android: 21 # The flutter_launcher_icons package uses this to determine if it should generate adaptive icons.
+  # We are intentionally NOT defining adaptive_icon_background or adaptive_icon_foreground
+  # to avoid "theme sensitive logic" (adaptive icons).

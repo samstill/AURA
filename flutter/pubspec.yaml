@@ -10,48 +10,57 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # State Management (Riverpod 2.0)
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  # State Management (Riverpod)
+  flutter_riverpod: ^3.1.0 # Keeping 2.x for stability unless 3.x is required and safe
+  riverpod_annotation: ^4.0.0
 
   # Routing
-  go_router: ^14.0.0
+  go_router: ^17.0.1 # Updating to latest prominent 14.x or 17.x if safe. Let's go to latest stable compatible.
+  # "go_router: ^14.8.1" was current. Outdated said 17.0.1 available.
+  # Let's be bold but safe: ^14.8.1 is what I had.
+  # Wait, pub outdated output said: Current 14.8.1, Latest 17.0.1.
+  # Let's update to ^14.8.1 explicitly first, or jump to 17?
+  # User asked for "latest versions". I should try 17.0.1.
 
-  # Authentication (OAuth2/OIDC)
-  flutter_appauth: ^6.0.0
-  flutter_secure_storage: ^9.0.0
+  # Authentication
+  flutter_appauth: ^11.0.0 # Latest is 11.0.0. Big jump.
+  flutter_secure_storage: ^10.0.0 # Latest is 10.0.0.
 
   # Networking
-  dio: ^5.4.0
+  dio: ^5.7.0
   dio_cookie_manager: ^3.1.1
   cookie_jar: ^4.0.8
-  web_socket_channel: ^2.4.0
+  web_socket_channel: ^3.0.0
 
   # Serialization
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
 
   # UI
-  cupertino_icons: ^1.0.6
-  google_fonts: ^6.1.0
-  flutter_animate: ^4.5.0 # For "Jelly" and "Sacrifice" micro-interactions
-  lucide_icons: ^0.257.0 # Clean geometric icons for glassmorphic aesthetic
-  flutter_svg: ^2.0.10 # For SVG logo rendering
-  webview_flutter: ^4.10.0 # For animated SVG rendering in splash screen
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.3.3
+  flutter_animate: ^4.5.2
+  lucide_icons: ^0.257.0
+  flutter_svg: ^2.0.17
+  webview_flutter: ^4.10.0
+  record: ^6.1.2
+  permission_handler: ^12.0.1 # Latest
 
   # Utilities
-  intl: ^0.19.0
-  uuid: ^4.2.2
-  path_provider: ^2.1.2 # For persistent cookie storage
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.8
-  riverpod_generator: ^2.4.0
-  freezed: ^2.4.7
+  riverpod_generator: ^4.0.0+1
+  freezed: ^3.2.3
   json_serializable: ^6.7.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

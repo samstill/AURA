@@ -9,6 +9,7 @@
 /// AuraHaptics.heavy();    // Important action
 /// AuraHaptics.selection(); // Selection change
 /// ```
+library;
 
 import 'package:flutter/services.dart';
 

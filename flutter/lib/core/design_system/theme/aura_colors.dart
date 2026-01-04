@@ -4,6 +4,7 @@
 /// and Companionship (The Cure).
 ///
 /// Uses ThemeExtension to inject semantic color names into Flutter Context.
+library;
 
 import 'package:flutter/material.dart';
 
@@ -50,8 +51,8 @@ class AuraColors extends ThemeExtension<AuraColors> {
     bgPrimary: const Color(0xFF000000), // OLED Infinite - pure black
     bgSecondary: const Color(0xFF080808), // Shadow - barely visible elevation
     textPrimary: const Color(0xFFE1E1E1), // Softened White - reduces eye strain
-    textSecondary: const Color(0xFFE1E1E1).withOpacity(0.6),
-    glassBorder: const Color(0xFFFFFFFF).withOpacity(0.08), // Sharp, faint
+    textSecondary: const Color(0xFFE1E1E1).withValues(alpha: 0.6),
+    glassBorder: const Color(0xFFFFFFFF).withValues(alpha: 0.08), // Sharp, faint
     glassShadow: Colors.black, // Deep merging shadow
     glassOpacity: 0.3, // Low opacity for "Void" feel
     blurIntensity: 10.0,
@@ -64,9 +65,9 @@ class AuraColors extends ThemeExtension<AuraColors> {
     bgPrimary: const Color(0xFFFFF9F5), // Warm Alabaster - skin-tone base
     bgSecondary: const Color(0xFFF2E8E6), // Pale Blush - biological and tender
     textPrimary: const Color(0xFF3E3436), // Deep Cocoa - warmer than pure black
-    textSecondary: const Color(0xFF3E3436).withOpacity(0.6),
-    glassBorder: const Color(0xFFFFFFFF).withOpacity(0.8), // High contrast
-    glassShadow: const Color(0xFFA67C82).withOpacity(0.15), // Subsurface scattering
+    textSecondary: const Color(0xFF3E3436).withValues(alpha: 0.6),
+    glassBorder: const Color(0xFFFFFFFF).withValues(alpha: 0.8), // High contrast
+    glassShadow: const Color(0xFFA67C82).withValues(alpha: 0.15), // Subsurface scattering
     glassOpacity: 0.75, // High opacity to prevent background bleed
     blurIntensity: 15.0,
   );

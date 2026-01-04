@@ -10,6 +10,7 @@
 /// - 65%: scale(0.98, 1.02)
 /// - 75%: scale(1.01, 0.99)
 /// - 100%: scale(1, 1)
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,6 +39,14 @@ class _AuraJellyButtonState extends State<AuraJellyButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _isPressed = false;
+  bool _isDisposed = false;
+
+  void _safeSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    try {
+      setState(fn);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -48,6 +57,7 @@ class _AuraJellyButtonState extends State<AuraJellyButton>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _controller.dispose();
     super.dispose();
   }
@@ -64,9 +74,9 @@ class _AuraJellyButtonState extends State<AuraJellyButton>
     final aura = context.aura;
 
     Widget button = GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
+      onTapDown: (_) { if (!_isDisposed) _safeSetState(() => _isPressed = true); },
+      onTapUp: (_) { if (!_isDisposed) _safeSetState(() => _isPressed = false); },
+      onTapCancel: () { if (!_isDisposed) _safeSetState(() => _isPressed = false); },
       onTap: _handleTap,
       child: AnimatedScale(
         // CSS: active { transform: scale(0.92); }
@@ -76,12 +86,12 @@ class _AuraJellyButtonState extends State<AuraJellyButton>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: widget.active
-                ? AuraColors.heartbeat.withOpacity(0.1)
+                ? AuraColors.heartbeat.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.active
-                  ? AuraColors.heartbeat.withOpacity(0.3)
+                  ? AuraColors.heartbeat.withValues(alpha: 0.3)
                   : Colors.transparent,
             ),
           ),

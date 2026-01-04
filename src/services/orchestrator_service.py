@@ -43,6 +43,7 @@ from services.analyst_service import analyst_service
 from services.semantic_cache_service import semantic_cache_service
 from services.tool_manager import tool_manager
 from services.memory_service import memory_service
+from services.task_service import task_service
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -409,6 +410,16 @@ class OrchestratorService:
                             self._run_memory_analysis(user_id, user_query, stitch_result.text)
                         )
                         
+                        # Task Tracking: Log success
+                        asyncio.create_task(
+                            task_service.create_task(
+                                user_id=user_id,
+                                title=user_query,
+                                status="completed",
+                                result=stitch_result.text
+                            )
+                        )
+                        
                         logger.info("[Orchestrator] Early return after perfect stitch")
                         return
                     except Exception as e:
@@ -504,6 +515,16 @@ class OrchestratorService:
             asyncio.create_task(
                 self._run_memory_analysis(user_id, user_query, stitch_result.text)
             )
+
+            # Task Tracking: Log success
+            asyncio.create_task(
+                task_service.create_task(
+                    user_id=user_id,
+                    title=user_query,
+                    status="completed",
+                    result=stitch_result.text
+                )
+            )
             
             return
             
@@ -535,6 +556,16 @@ class OrchestratorService:
         # Memory analysis even for timeout/handoff (user message still has value)
         asyncio.create_task(
             self._run_memory_analysis(user_id, user_query, timeout_message)
+        )
+
+        # Task Tracking: Log timeout/async handoff start
+        asyncio.create_task(
+            task_service.create_task(
+                user_id=user_id,
+                title=user_query,
+                status="processing",
+                result="Processing in background..."
+            )
         )
         
         yield f"\n\n[Task ID: {task_id} - You'll be notified when ready]"

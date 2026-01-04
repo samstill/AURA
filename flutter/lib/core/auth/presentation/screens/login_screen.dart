@@ -9,6 +9,7 @@
 /// - Theme-aware SVG logo (dark/light)
 /// - Premium gradient backgrounds
 /// - Bottom accent gradient line
+library;
 
 import 'dart:math';
 
@@ -415,7 +416,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: AuraColors.tether.withOpacity(0.3),
+            color: AuraColors.tether.withValues(alpha: 0.3),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -457,7 +458,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 40,
               height: 40,
               child: CircularProgressIndicator(
@@ -495,7 +496,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           padding: const EdgeInsets.all(32),
           child: Column(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 40,
                 height: 40,
                 child: CircularProgressIndicator(
@@ -566,7 +567,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       onTap: () {
                         // Handle sign up navigation
                       },
-                      child: Text(
+                      child: const Text(
                         'Sign up',
                         style: TextStyle(
                           color: AuraColors.tether,
@@ -598,7 +599,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: aura.bgSecondary.withOpacity(0.5),
+                color: aura.bgSecondary.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: aura.glassBorder),
               ),
@@ -664,7 +665,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onTap: () {
                 // Handle forgot password
               },
-              child: Text(
+              child: const Text(
                 'Forgot password?',
                 style: TextStyle(
                   color: AuraColors.tether,
@@ -696,7 +697,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       onTap: () {
                         // Handle sign up navigation
                       },
-                      child: Text(
+                      child: const Text(
                         'Sign up',
                         style: TextStyle(
                           color: AuraColors.tether,
@@ -735,29 +736,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       style: TextStyle(color: aura.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: TextStyle(color: aura.textSecondary.withOpacity(0.5)),
+        hintStyle: TextStyle(color: aura.textSecondary.withValues(alpha: 0.5)),
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, color: aura.textSecondary, size: 20)
             : null,
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: isDark
-            ? Colors.white.withOpacity(0.05)
-            : const Color(0xFFF2E8E6).withOpacity(0.4),
+            ? Colors.white.withValues(alpha: 0.05)
+            : const Color(0xFFF2E8E6).withValues(alpha: 0.4),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
             color: isDark
-                ? Colors.white.withOpacity(0.1)
-                : const Color(0xFFA67C82).withOpacity(0.25),
+                ? Colors.white.withValues(alpha: 0.1)
+                : const Color(0xFFA67C82).withValues(alpha: 0.25),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
             color: isDark
-                ? Colors.white.withOpacity(0.1)
-                : const Color(0xFFA67C82).withOpacity(0.25),
+                ? Colors.white.withValues(alpha: 0.1)
+                : const Color(0xFFA67C82).withValues(alpha: 0.25),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -778,7 +779,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          AuraIcon.halo(LucideIcons.shield, size: 64),
+          const AuraIcon.halo(LucideIcons.shield, size: 64),
           const SizedBox(height: 16),
           Text(
             'Two-Factor Authentication',
@@ -833,7 +834,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(LucideIcons.ban, size: 64, color: AuraColors.heartbeat),
+          const Icon(LucideIcons.ban, size: 64, color: AuraColors.heartbeat),
           const SizedBox(height: 16),
           Text(
             'Access Denied',
@@ -866,7 +867,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(LucideIcons.alertCircle, size: 64, color: AuraColors.heartbeat),
+          const Icon(LucideIcons.alertCircle, size: 64, color: AuraColors.heartbeat),
           const SizedBox(height: 16),
           Text(
             'Authentication Error',
@@ -913,7 +914,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          AuraIcon.glass(LucideIcons.helpCircle, size: 64),
+          const AuraIcon.glass(LucideIcons.helpCircle, size: 64),
           const SizedBox(height: 16),
           Text(
             'Unknown Stage',
@@ -945,12 +946,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AuraColors.heartbeat.withOpacity(0.15),
+              color: AuraColors.heartbeat.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(LucideIcons.alertTriangle, color: AuraColors.heartbeat),
+                const Icon(LucideIcons.alertTriangle, color: AuraColors.heartbeat),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -976,13 +977,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AuraColors.heartbeat.withOpacity(0.15),
+        color: AuraColors.heartbeat.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AuraColors.heartbeat.withOpacity(0.3)),
+        border: Border.all(color: AuraColors.heartbeat.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.alertCircle, color: AuraColors.heartbeat, size: 20),
+          const Icon(LucideIcons.alertCircle, color: AuraColors.heartbeat, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -1023,7 +1024,7 @@ class _FloatingOrb extends StatelessWidget {
         gradient: RadialGradient(
           colors: [
             color.withOpacity(opacity),
-            color.withOpacity(0),
+            color.withValues(alpha: 0),
           ],
           stops: const [0.0, 0.7],
         ),

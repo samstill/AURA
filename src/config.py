@@ -33,13 +33,14 @@ class Settings(BaseSettings):
     # Authentik IDP (OAuth2/OIDC)
     # -------------------------------------------------------------------------
     # Browser-facing URL (for redirects - user's browser must reach this)
-    authentik_url: str = "http://localhost:30080"
+    authentik_url: str = "https://auth.encresa.com"
     
     # Internal URL (for server-to-server communication inside K8s cluster)
     authentik_internal_url: str = "http://authentik.aura-auth.svc.cluster.local"
     
     authentik_client_id: str = ""
     authentik_client_secret: str = ""
+    authentik_secret_key: Optional[str] = None
     
     # OIDC endpoints - browser-facing (redirects go through user's browser)
     @property
@@ -90,6 +91,18 @@ class Settings(BaseSettings):
     qdrant_url: Optional[str] = None
     qdrant_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    
+    # -------------------------------------------------------------------------
+    # Vector Store Configuration (Supermemory)
+    # VECTOR_STORE_PROVIDER: "supabase" (dev) or "vertex_ai" (prod)
+    # -------------------------------------------------------------------------
+    vector_store_provider: str = "supabase"
+    
+    # Vertex AI settings (only used when provider = vertex_ai)
+    gcp_project_id: Optional[str] = None
+    gcp_location: str = "us-central1"
+    vertex_index_endpoint: Optional[str] = None
+    vertex_index_id: Optional[str] = None
     
     # -------------------------------------------------------------------------
     # Google Gemini Configuration

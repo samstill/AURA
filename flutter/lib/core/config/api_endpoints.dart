@@ -1,6 +1,7 @@
 /// Project Aura - API Endpoints
 /// =============================
 /// Centralized API endpoint definitions.
+library;
 
 import 'app_config.dart';
 

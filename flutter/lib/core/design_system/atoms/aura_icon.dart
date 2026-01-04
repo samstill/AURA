@@ -10,6 +10,7 @@
 /// AuraIcon(LucideIcons.heart, style: AuraIconStyle.heartbeat)
 /// AuraIcon(LucideIcons.sparkles, style: AuraIconStyle.halo)
 /// ```
+library;
 
 import 'package:flutter/material.dart';
 import '../theme/aura_colors.dart';

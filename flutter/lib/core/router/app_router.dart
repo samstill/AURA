@@ -1,14 +1,17 @@
 /// Project Aura - App Router
 /// ==========================
 /// GoRouter configuration with auth guards and route definitions.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../features/dashboard/presentation/screens/home_screen.dart';
-import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/dashboard/presentation/screens/screens.dart';
 import '../auth/presentation/screens/login_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -18,6 +21,8 @@ class AppRoutes {
   static const String login = '/login';
   static const String home = '/';
   static const String chat = '/chat';
+  static const String tools = '/tools';
+  static const String summary = '/summary';
 }
 
 /// ValueNotifier that listens to auth state and notifies GoRouter
@@ -31,6 +36,15 @@ class AuthChangeNotifier extends ChangeNotifier {
   
   bool get isAuthenticated => _isAuthenticated;
   bool get splashComplete => _splashComplete;
+
+  /// Initialize state from SharedPreferences (called from main)
+  Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    // If we have seen the splash before, mark it as complete immediately
+    _splashComplete = prefs.getBool('has_seen_splash') ?? false;
+    debugPrint('🔔 AuthChangeNotifier: Initialized. Splash seen before: $_splashComplete');
+    notifyListeners();
+  }
   
   void setAuthenticated(bool value) {
     if (_isAuthenticated != value) {
@@ -45,6 +59,13 @@ class AuthChangeNotifier extends ChangeNotifier {
       debugPrint('🔔 AuthChangeNotifier: splashComplete changed to $value');
       _splashComplete = value;
       notifyListeners();
+      
+      // Persist that we've seen the splash screen
+      if (value) {
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setBool('has_seen_splash', true);
+        });
+      }
     }
   }
 }
@@ -54,7 +75,7 @@ GoRouter? _routerInstance;
 
 /// GoRouter provider - returns stable instance
 @riverpod
-GoRouter appRouter(AppRouterRef ref) {
+GoRouter appRouter(Ref ref) {
   // Only create router once
   if (_routerInstance != null) {
     return _routerInstance!;
@@ -114,7 +135,35 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const DashboardShell(),
+      ),
+      GoRoute(
+        path: '/profile', // Keeping for backward compat, or redirect to settings
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/secretary',
+        builder: (context, state) => const Scaffold(body: Center(child: Text("Edit Secretary Placeholder"))), // Placeholder
+      ),
+      GoRoute(
+        path: '/settings/account',
+        builder: (context, state) => const Scaffold(body: Center(child: Text("Account Settings Placeholder"))), // Placeholder
+      ),
+       GoRoute(
+        path: '/settings/app',
+        builder: (context, state) => const Scaffold(body: Center(child: Text("App Settings Placeholder"))), // Placeholder
+      ),
+      GoRoute(
+        path: '/background-tasks',
+        builder: (context, state) => const BackgroundTasksScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.tools,
+        builder: (context, state) => const ToolsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.summary,
+        builder: (context, state) => const SummaryScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -123,6 +172,7 @@ GoRouter appRouter(AppRouterRef ref) {
       ),
     ),
   );
+
   
   return _routerInstance!;
 }

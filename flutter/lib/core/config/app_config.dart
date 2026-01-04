@@ -2,9 +2,10 @@
 /// ==================================
 /// Unified configuration for API, Auth, and environment settings.
 /// Handles platform-specific host resolution (emulator vs physical device).
+library;
 
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 
 /// Environment configuration
 enum Environment { development, staging, production }
@@ -12,6 +13,20 @@ enum Environment { development, staging, production }
 /// Centralized app configuration
 class AppConfig {
   static const Environment environment = Environment.development;
+  
+  // ---------------------------------------------------------------------------
+  // Dev Mode Configuration
+  // ---------------------------------------------------------------------------
+  
+  /// Set to true when running Authentik locally via ./dev.sh --authentik-only
+  /// Set to false when using Kubernetes Authentik (port 30080)
+  static const bool useLocalAuthentik = true;
+  
+  /// Local Authentik port (from docker-compose.authentik.yml)
+  static const int localAuthentikPort = 9000;
+  
+  /// Kubernetes Authentik port (NodePort)
+  static const int kubernetesAuthentikPort = 30080;
   
   // ---------------------------------------------------------------------------
   // Network Configuration
@@ -27,8 +42,10 @@ class AppConfig {
   /// Backend port (NodePort)
   static const int backendPort = 30000;
   
-  /// Authentik port (NodePort)
-  static const int authentikPort = 30080;
+  /// Get Authentik port based on dev mode
+  static int get authentikPort => useLocalAuthentik 
+      ? localAuthentikPort 
+      : kubernetesAuthentikPort;
   
   /// Get the appropriate host for the current platform
   static String get host {
@@ -61,19 +78,20 @@ class AppConfig {
   // ---------------------------------------------------------------------------
   
   /// OAuth2 Client ID - must match Authentik provider
-  static const String clientId = 'X28xia3rFhbApkx90g1PdAM8YoAlqaU7MO5faMsX';
+  static const String clientId = 'XxxliVFhCdjYqGEsp0jkeCCRFchIPeYcPwh5XFSQ';
   
   /// Redirect URL for OAuth2 callback
-  static const String redirectUrl = 'com.project.aura://login-callback';
+  static const String redirectUrl = 'com.encresa.aura://login-callback';
   
   /// OAuth2 scopes
   static const List<String> scopes = ['openid', 'profile', 'email'];
   
   /// Default authentication flow slug
-  static const String authFlowSlug = 'default-authentication-flow';
+  static const String authFlowSlug = 'encresa';
   
   /// Authentik base URL
-  static String get authentikBaseUrl => 'http://$host:$authentikPort';
+  // static String get authentikBaseUrl => 'http://$host:$authentikPort';
+  static String get authentikBaseUrl => 'https://auth.encresa.com';
   
   /// OIDC Issuer URL
   static String get issuer => '$authentikBaseUrl/application/o/aura/';
@@ -89,4 +107,20 @@ class AppConfig {
   
   /// Userinfo endpoint
   static String get userinfoEndpoint => '${issuer}userinfo/';
+  
+  /// Debug: Print current configuration
+  static void printConfig() {
+    if (kDebugMode) {
+      print('╔════════════════════════════════════════════════════════════╗');
+      print('║              AURA Configuration                            ║');
+      print('╠════════════════════════════════════════════════════════════╣');
+      print('║ Environment: $environment');
+      print('║ Host: $host');
+      print('║ Local Authentik: $useLocalAuthentik');
+      print('║ Authentik Port: $authentikPort');
+      print('║ Backend URL: $apiBaseUrl');
+      print('║ Authentik URL: $authentikBaseUrl');
+      print('╚════════════════════════════════════════════════════════════╝');
+    }
+  }
 }

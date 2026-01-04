@@ -12,6 +12,7 @@
 /// - Energy explodes outward
 /// - Shimmer ripple effect
 /// - Haptic feedback (medium)
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -87,8 +88,22 @@ class AuraButton extends StatefulWidget {
 
 class _AuraButtonState extends State<AuraButton> {
   bool _isPressed = false;
+  bool _isDisposed = false;
 
   bool get _isEnabled => widget.onPressed != null && !widget.isLoading;
+
+  void _safeSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    try {
+      setState(fn);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   Color get _baseColor {
     switch (widget.variant) {
@@ -114,20 +129,21 @@ class _AuraButtonState extends State<AuraButton> {
   }
 
   void _handleTapDown(TapDownDetails details) {
-    if (!_isEnabled) return;
-    setState(() => _isPressed = true);
+    if (!_isEnabled || _isDisposed) return;
+    _safeSetState(() => _isPressed = true);
     AuraHaptics.tension();
   }
 
   void _handleTapUp(TapUpDetails details) {
-    if (!_isEnabled) return;
-    setState(() => _isPressed = false);
+    if (!_isEnabled || _isDisposed) return;
+    _safeSetState(() => _isPressed = false);
     AuraHaptics.sacrifice();
     widget.onPressed?.call();
   }
 
   void _handleTapCancel() {
-    setState(() => _isPressed = false);
+    if (_isDisposed) return;
+    _safeSetState(() => _isPressed = false);
   }
 
   @override
@@ -154,7 +170,7 @@ class _AuraButtonState extends State<AuraButton> {
           decoration: BoxDecoration(
             color: _isEnabled
                 ? (isGhost ? Colors.transparent : _baseColor)
-                : _baseColor.withOpacity(0.5),
+                : _baseColor.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
             border: isGhost
                 ? Border.all(color: aura.glassBorder, width: 1)
@@ -163,7 +179,7 @@ class _AuraButtonState extends State<AuraButton> {
                 ? [] // Shadow disappears under tension or when disabled
                 : [
                     BoxShadow(
-                      color: _baseColor.withOpacity(0.4),
+                      color: _baseColor.withValues(alpha: 0.4),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -203,7 +219,7 @@ class _AuraButtonState extends State<AuraButton> {
           .animate(target: _isPressed ? 0 : 1)
           .shimmer(
             duration: 600.ms,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
             curve: AuraMotion.sacrificeOut,
           ),
     );
@@ -234,21 +250,36 @@ class AuraIconButton extends StatefulWidget {
 class _AuraIconButtonState extends State<AuraIconButton>
     with SingleTickerProviderStateMixin {
   bool _isPressed = false;
+  bool _isDisposed = false;
+
+  void _safeSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    try {
+      setState(fn);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   void _handleTapDown(TapDownDetails details) {
-    if (widget.onPressed == null) return;
-    setState(() => _isPressed = true);
+    if (widget.onPressed == null || _isDisposed) return;
+    _safeSetState(() => _isPressed = true);
     AuraHaptics.jelly();
   }
 
   void _handleTapUp(TapUpDetails details) {
-    if (widget.onPressed == null) return;
-    setState(() => _isPressed = false);
+    if (widget.onPressed == null || _isDisposed) return;
+    _safeSetState(() => _isPressed = false);
     widget.onPressed?.call();
   }
 
   void _handleTapCancel() {
-    setState(() => _isPressed = false);
+    if (_isDisposed) return;
+    _safeSetState(() => _isPressed = false);
   }
 
   @override
@@ -270,7 +301,7 @@ class _AuraIconButtonState extends State<AuraIconButton>
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: aura.bgSecondary.withOpacity(0.5),
+            color: aura.bgSecondary.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: aura.glassBorder),
           ),

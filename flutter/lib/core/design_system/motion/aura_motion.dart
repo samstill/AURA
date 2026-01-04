@@ -2,6 +2,7 @@
 /// ========================================
 /// Centralized animation curves, durations, and physics constants
 /// following the "Ice" (Global Momentum) design principle.
+library;
 
 import 'package:flutter/animation.dart';
 

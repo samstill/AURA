@@ -1,9 +1,11 @@
 /// Project Aura - Auth Controller
 /// ===============================
 /// AsyncNotifier for authentication state management.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/data.dart';
 import '../../domain/domain.dart';
@@ -169,11 +171,11 @@ class AuthController extends _$AuthController {
 
 /// Convenience providers
 @riverpod
-bool isAuthenticated(IsAuthenticatedRef ref) {
-  return ref.watch(authControllerProvider).valueOrNull?.isAuthenticated ?? false;
+bool isAuthenticated(Ref ref) {
+  return ref.watch(authControllerProvider).asData?.value.isAuthenticated ?? false;
 }
 
 @riverpod
-FlowChallenge? currentChallenge(CurrentChallengeRef ref) {
+FlowChallenge? currentChallenge(Ref ref) {
   return ref.watch(authControllerProvider.notifier).currentChallenge;
 }

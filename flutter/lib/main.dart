@@ -2,6 +2,7 @@
 /// ============================================
 /// Feature-first architecture with Riverpod 2.0 and GoRouter.
 /// Theme system follows the "Tactical Implementation of Desire" philosophy.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/design_system/design_system.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize persistence before starting the app
+  await AuthChangeNotifier.instance.initialize();
 
   runApp(
     const ProviderScope(

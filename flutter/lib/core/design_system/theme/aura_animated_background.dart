@@ -2,6 +2,7 @@
 /// ===================================
 /// Reusable animated background with floating orbs and gradient.
 /// Used in login screen, splash screen, and other premium screens.
+library;
 
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -241,7 +242,7 @@ class _FloatingOrb extends StatelessWidget {
         gradient: RadialGradient(
           colors: [
             color.withOpacity(opacity),
-            color.withOpacity(0),
+            color.withValues(alpha: 0),
           ],
           stops: const [0.0, 0.7],
         ),

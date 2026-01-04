@@ -1,6 +1,7 @@
 /// Project Aura - Flow Challenge Models
 /// =====================================
 /// Data models for Authentik Flows API responses.
+library;
 
 /// Component types returned by Authentik
 enum FlowComponentType {

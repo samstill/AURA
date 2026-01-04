@@ -286,7 +286,9 @@ class AgentService:
             # Load MCP tools for valid UUID users
             for config in user_tools_config:
                 try:
-                    client = RemoteMCPClient(config["mcp_endpoint"], config.get("config", {}))
+                    tool_config = config.get("config", {}) or {}
+                    transport = tool_config.get("transport", "http")
+                    client = RemoteMCPClient(config["mcp_endpoint"], tool_config, transport=transport)
                     
                     # Discovery
                     mcp_list = await client.list_tools()

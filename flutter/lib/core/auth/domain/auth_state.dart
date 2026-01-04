@@ -1,6 +1,7 @@
 /// Project Aura - Auth State Model
 /// ================================
 /// Immutable auth state using freezed.
+library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -18,7 +19,7 @@ enum AuthStatus {
 
 /// User model from Authentik
 @freezed
-class AuthUser with _$AuthUser {
+abstract class AuthUser with _$AuthUser {
   const factory AuthUser({
     required String id,
     required String email,
@@ -33,7 +34,7 @@ class AuthUser with _$AuthUser {
 
 /// Complete auth state
 @freezed
-class AuthState with _$AuthState {
+abstract class AuthState with _$AuthState {
   const AuthState._();
   
   const factory AuthState({

@@ -2,10 +2,10 @@
 /// ==================================
 /// Animated logo for splash screen using flutter_animate.
 /// Static SVG with programmatic animations for reliability.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreenIcon extends StatelessWidget {
   final double? width;
@@ -32,7 +32,7 @@ class SplashScreenIcon extends StatelessWidget {
               .animate(onPlay: (c) => c.repeat())
               .shimmer(
                 duration: 2000.ms,
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
               ),
           
           // Center eye/gear element
@@ -77,7 +77,7 @@ class SplashScreenIcon extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+            color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -89,9 +89,9 @@ class SplashScreenIcon extends StatelessWidget {
           height: 60,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
             border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1a1a1a).withOpacity(0.5),
+              color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1a1a1a).withValues(alpha: 0.5),
               width: 2,
             ),
           ),
@@ -118,7 +118,7 @@ class SplashScreenIcon extends StatelessWidget {
         shape: BoxShape.circle,
         gradient: RadialGradient(
           colors: [
-            (isDark ? Colors.white : const Color(0xFF1a1a1a)).withOpacity(0.3),
+            (isDark ? Colors.white : const Color(0xFF1a1a1a)).withValues(alpha: 0.3),
             Colors.transparent,
           ],
         ),

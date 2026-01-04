@@ -6,8 +6,7 @@ part of 'message_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$MessageImpl _$$MessageImplFromJson(Map<String, dynamic> json) =>
-    _$MessageImpl(
+_Message _$MessageFromJson(Map<String, dynamic> json) => _Message(
       id: json['id'] as String,
       text: json['text'] as String,
       isUser: json['isUser'] as bool,
@@ -16,8 +15,7 @@ _$MessageImpl _$$MessageImplFromJson(Map<String, dynamic> json) =>
       error: json['error'] as String?,
     );
 
-Map<String, dynamic> _$$MessageImplToJson(_$MessageImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$MessageToJson(_Message instance) => <String, dynamic>{
       'id': instance.id,
       'text': instance.text,
       'isUser': instance.isUser,

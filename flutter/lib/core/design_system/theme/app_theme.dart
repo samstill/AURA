@@ -2,6 +2,7 @@
 /// =============================
 /// Assembles ThemeData with semantic colors, typography, and Material3.
 /// Ensures instant theme switching between Void (dark) and Mirage (light).
+library;
 
 import 'package:flutter/material.dart';
 import 'aura_colors.dart';
@@ -28,15 +29,15 @@ class AppTheme {
         brightness: brightness,
         primary: AuraColors.heartbeat,
         onPrimary: Colors.white,
-        primaryContainer: AuraColors.heartbeat.withOpacity(0.2),
+        primaryContainer: AuraColors.heartbeat.withValues(alpha: 0.2),
         onPrimaryContainer: AuraColors.heartbeat,
         secondary: AuraColors.tether,
         onSecondary: Colors.white,
-        secondaryContainer: AuraColors.tether.withOpacity(0.2),
+        secondaryContainer: AuraColors.tether.withValues(alpha: 0.2),
         onSecondaryContainer: AuraColors.tether,
         tertiary: AuraColors.halo,
         onTertiary: Colors.black,
-        tertiaryContainer: AuraColors.halo.withOpacity(0.2),
+        tertiaryContainer: AuraColors.halo.withValues(alpha: 0.2),
         onTertiaryContainer: AuraColors.halo,
         error: const Color(0xFFFF2E51),
         onError: Colors.white,
@@ -45,12 +46,12 @@ class AppTheme {
         surfaceContainerHighest: auraColors.bgSecondary,
         onSurfaceVariant: auraColors.textSecondary,
         outline: auraColors.glassBorder,
-        outlineVariant: auraColors.glassBorder.withOpacity(0.5),
+        outlineVariant: auraColors.glassBorder.withValues(alpha: 0.5),
         shadow: auraColors.glassShadow,
-        scrim: Colors.black.withOpacity(0.5),
+        scrim: Colors.black.withValues(alpha: 0.5),
         inverseSurface: isDark ? auraColors.textPrimary : auraColors.bgPrimary,
         onInverseSurface: isDark ? auraColors.bgPrimary : auraColors.textPrimary,
-        inversePrimary: AuraColors.heartbeat.withOpacity(0.8),
+        inversePrimary: AuraColors.heartbeat.withValues(alpha: 0.8),
       ),
 
       // Apply the Trinity of Seduction typography

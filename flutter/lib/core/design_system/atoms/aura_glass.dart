@@ -4,6 +4,7 @@
 /// 
 /// - Void (Dark): Low opacity, sharp borders, deep shadows
 /// - Mirage (Light): High opacity, strong borders, warm subsurface shadows
+library;
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -48,27 +49,27 @@ class AuraGlass extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: isDark
               ? [
-                  Colors.white.withOpacity(0.08),
-                  Colors.white.withOpacity(0.02),
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.02),
                 ]
               : [
-                  Colors.white.withOpacity(0.7),
-                  Colors.white.withOpacity(0.4),
+                  Colors.white.withValues(alpha: 0.7),
+                  Colors.white.withValues(alpha: 0.4),
                 ],
         ),
         borderRadius: radius,
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.15)
-              : Colors.white.withOpacity(0.8),
+              ? Colors.white.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.8),
           width: 1.5,
         ),
         boxShadow: [
           // Outer glow shadow
           BoxShadow(
             color: isDark
-                ? Colors.black.withOpacity(0.5)
-                : aura.glassShadow.withOpacity(0.1),
+                ? Colors.black.withValues(alpha: 0.5)
+                : aura.glassShadow.withValues(alpha: 0.1),
             blurRadius: 40,
             offset: const Offset(0, 15),
             spreadRadius: -5,
@@ -76,8 +77,8 @@ class AuraGlass extends StatelessWidget {
           // Inner subtle shadow for depth
           BoxShadow(
             color: isDark
-                ? AuraColors.tether.withOpacity(0.05)
-                : AuraColors.heartbeat.withOpacity(0.03),
+                ? AuraColors.tether.withValues(alpha: 0.05)
+                : AuraColors.heartbeat.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(0, 5),
             spreadRadius: -2,
@@ -99,9 +100,9 @@ class AuraGlass extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AuraColors.tether.withOpacity(0.3),
-              AuraColors.heartbeat.withOpacity(0.2),
-              AuraColors.halo.withOpacity(0.3),
+              AuraColors.tether.withValues(alpha: 0.3),
+              AuraColors.heartbeat.withValues(alpha: 0.2),
+              AuraColors.halo.withValues(alpha: 0.3),
             ],
           ),
         ),
@@ -125,8 +126,8 @@ class AuraGlass extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
-          splashColor: AuraColors.halo.withOpacity(0.1),
-          highlightColor: AuraColors.halo.withOpacity(0.05),
+          splashColor: AuraColors.halo.withValues(alpha: 0.1),
+          highlightColor: AuraColors.halo.withValues(alpha: 0.05),
           child: content,
         ),
       );

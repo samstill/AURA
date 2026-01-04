@@ -1,6 +1,7 @@
 /// Project Aura - Theme Constants
 /// ===============================
 /// Design tokens for the Aura brand.
+library;
 
 import 'package:flutter/material.dart';
 

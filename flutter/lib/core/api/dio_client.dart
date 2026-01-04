@@ -1,36 +1,30 @@
 /// Project Aura - Dio HTTP Client
 /// ================================
 /// Centralized Dio instance with interceptors.
+library;
 
-import 'dart:io';
+// import 'dart:io'; // Removed for Web compatibility
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart'; // Removed for Web compatibility
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../config/app_config.dart';
+import 'cookie_store/cookie_store.dart';
 
 part 'dio_client.g.dart';
 
-/// Provides the persistent CookieJar instance
+/// Provides the persistent CookieJar instance (or in-memory on Web)
 @Riverpod(keepAlive: true)
-Future<PersistCookieJar> cookieJar(CookieJarRef ref) async {
-  final appDocDir = await getApplicationDocumentsDirectory();
-  final cookiePath = '${appDocDir.path}/.cookies/';
-  final directory = Directory(cookiePath);
-  
-  if (!await directory.exists()) {
-    await directory.create(recursive: true);
-  }
-  
-  return PersistCookieJar(storage: FileStorage(cookiePath));
+Future<CookieJar> cookieJar(Ref ref) async {
+  return makeCookieJar();
 }
 
 /// Provides the configured Dio instance for API calls
-@Riverpod(keepAlive: true)
-Future<Dio> apiClient(ApiClientRef ref) async {
+@riverpod
+Future<Dio> apiClient(Ref ref) async {
   final cookieJar = await ref.watch(cookieJarProvider.future);
   
   final dio = Dio(BaseOptions(
@@ -61,7 +55,7 @@ Future<Dio> apiClient(ApiClientRef ref) async {
 
 /// Provides the configured Dio instance for Authentik API calls
 @Riverpod(keepAlive: true)
-Future<Dio> authentikClient(AuthentikClientRef ref) async {
+Future<Dio> authentikClient(Ref ref) async {
   final cookieJar = await ref.watch(cookieJarProvider.future);
   
   final dio = Dio(BaseOptions(

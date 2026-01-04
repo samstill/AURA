@@ -6,6 +6,7 @@ Repository pattern implementation for memory storage.
 Handles all database operations for user profiles and archive memories.
 
 Uses asyncpg for async PostgreSQL access.
+Vector operations are delegated to VectorStoreAdapter for portability.
 """
 
 import logging
@@ -26,7 +27,7 @@ class MemoryRepository:
     
     Provides CRUD operations with:
     - Optimistic Concurrency Control via versioning
-    - Vector embedding generation for archive search
+    - Vector operations via pluggable adapter (Supabase/Vertex AI)
     - Efficient batch operations
     """
     
@@ -35,23 +36,39 @@ class MemoryRepository:
     def __init__(self):
         self.pool = None
         self._initialized = False
+        self._vector_adapter = None
     
     async def initialize(self, pool):
-        """Initialize with database connection pool."""
+        """Initialize with database connection pool and vector adapter."""
         self.pool = pool
         self._initialized = True
-        logger.info("✅ Memory Repository initialized")
+        
+        # Initialize vector adapter
+        from services.adapters.factory import get_vector_adapter
+        self._vector_adapter = get_vector_adapter(pool=pool)
+        await self._vector_adapter.initialize(pool=pool)
+        
+        logger.info("✅ Memory Repository initialized with vector adapter")
     
     @property
     def is_initialized(self) -> bool:
         return self._initialized and self.pool is not None
     
+    @property
+    def vector_adapter(self):
+        """Get the vector store adapter."""
+        return self._vector_adapter
+    
     # =========================================================================
-    # Embedding Generation
+    # Embedding Generation (delegated to adapter)
     # =========================================================================
     
     async def get_embedding(self, text: str) -> List[float]:
-        """Generate embedding vector for text using Gemini."""
+        """Generate embedding vector for text (via adapter)."""
+        if self._vector_adapter:
+            return await self._vector_adapter.get_embedding(text)
+        
+        # Fallback to direct Gemini call if adapter not initialized
         try:
             result = genai.embed_content(
                 model=settings.embedding_model,
@@ -65,6 +82,10 @@ class MemoryRepository:
     
     async def get_query_embedding(self, text: str) -> List[float]:
         """Generate query embedding (optimized for search)."""
+        if self._vector_adapter and hasattr(self._vector_adapter, 'get_query_embedding'):
+            return await self._vector_adapter.get_query_embedding(text)
+        
+        # Fallback
         try:
             result = genai.embed_content(
                 model=settings.embedding_model,

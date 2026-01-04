@@ -141,3 +141,39 @@ Use **Aura Tester** (`src/static/aura-tester.html`):
 | `memory_repository.py` | Database ops |
 | `memory_schemas.py` | Pydantic models |
 | `routers/memory.py` | API endpoints |
+| `adapters/` | Vector store adapters |
+
+---
+
+## 🔌 Adapter Architecture (Portable Vector Store)
+
+Switch between Supabase (dev) and Vertex AI (prod) via environment variable.
+
+### File Structure
+```
+src/services/adapters/
+├── __init__.py
+├── base.py              # VectorStoreAdapter ABC
+├── supabase_adapter.py  # pgvector implementation
+├── vertex_adapter.py    # Vertex AI Matching Engine (stub)
+└── factory.py           # get_vector_adapter()
+```
+
+### Environment Variables
+```bash
+# Dev (Supabase/pgvector)
+VECTOR_STORE_PROVIDER=supabase
+
+# Prod (Vertex AI)
+VECTOR_STORE_PROVIDER=vertex_ai
+GCP_PROJECT_ID=project-aura-prod
+GCP_LOCATION=us-central1
+VERTEX_INDEX_ENDPOINT=projects/.../endpoints/...
+```
+
+### Reindex Command
+```bash
+# Rebuild vectors after switching providers
+python -m scripts.reindex_archive --all --force
+```
+

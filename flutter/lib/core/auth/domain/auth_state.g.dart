@@ -6,8 +6,7 @@ part of 'auth_state.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
-    _$AuthUserImpl(
+_AuthUser _$AuthUserFromJson(Map<String, dynamic> json) => _AuthUser(
       id: json['id'] as String,
       email: json['email'] as String,
       emailVerified: json['emailVerified'] as bool? ?? false,
@@ -19,8 +18,7 @@ _$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
           const [],
     );
 
-Map<String, dynamic> _$$AuthUserImplToJson(_$AuthUserImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$AuthUserToJson(_AuthUser instance) => <String, dynamic>{
       'id': instance.id,
       'email': instance.email,
       'emailVerified': instance.emailVerified,

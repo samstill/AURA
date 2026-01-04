@@ -2,8 +2,10 @@
 # =============================================================================
 # AURA Development Startup Script
 # =============================================================================
-# Usage: ./dev.sh
-# This script starts both the MCP server and the main backend for development.
+# Usage: ./dev.sh [OPTIONS]
+#   --with-authentik    Start Authentik IDP in dev mode (connects to Supabase)
+#   --authentik-only    Start only Authentik services
+#   --help              Show this help message
 # =============================================================================
 
 set -e
@@ -11,13 +13,47 @@ set -e
 # Configuration
 PORT_BACKEND=30000
 PORT_MCP=8000
+PORT_AUTHENTIK=9000
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Parse arguments
+WITH_AUTHENTIK=false
+AUTHENTIK_ONLY=false
+
+for arg in "$@"; do
+    case $arg in
+        --with-authentik)
+            WITH_AUTHENTIK=true
+            shift
+            ;;
+        --authentik-only)
+            AUTHENTIK_ONLY=true
+            WITH_AUTHENTIK=true
+            shift
+            ;;
+        --help)
+            echo "Usage: ./dev.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --with-authentik    Start Authentik IDP in dev mode (connects to Supabase)"
+            echo "  --authentik-only    Start only Authentik services"
+            echo "  --help              Show this help message"
+            echo ""
+            echo "Environment Variables for Authentik:"
+            echo "  AUTHENTIK_DATABASE_URL   PostgreSQL connection URL"
+            echo "                           Format: postgresql://user:password@host:port/dbname"
+            echo "  AUTHENTIK_SECRET_KEY     Secret key for Authentik (auto-generated if not set)"
+            exit 0
+            ;;
+    esac
+done
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}   ⚡ AURA Development Server${NC}"
@@ -30,14 +66,133 @@ cd "$SCRIPT_DIR"
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
+# Load .env file if it exists
+if [ -f ".env" ]; then
+    set -a  # Export all variables
+    source .env
+    set +a
+fi
+
+# -----------------------------------------------------------------------------
+# Parse AUTHENTIK_DATABASE_URL into components
+# Format: postgresql://user:password@host:port/dbname
+# -----------------------------------------------------------------------------
+parse_database_url() {
+    local url="$1"
+    
+    # Remove postgresql:// prefix
+    local rest="${url#postgresql://}"
+    
+    # Extract user:password@host:port/dbname
+    # Split on @ to get credentials and host parts
+    local credentials="${rest%%@*}"
+    local hostpart="${rest#*@}"
+    
+    # Extract user and password
+    export AUTHENTIK_DB_USER="${credentials%%:*}"
+    export AUTHENTIK_DB_PASSWORD="${credentials#*:}"
+    
+    # Extract host:port/dbname
+    local hostport="${hostpart%%/*}"
+    export AUTHENTIK_DB_NAME="${hostpart#*/}"
+    
+    # Extract host and port
+    if [[ "$hostport" == *":"* ]]; then
+        export AUTHENTIK_DB_HOST="${hostport%%:*}"
+        export AUTHENTIK_DB_PORT="${hostport#*:}"
+    else
+        export AUTHENTIK_DB_HOST="$hostport"
+        export AUTHENTIK_DB_PORT="5432"
+    fi
+    
+    # Remove any query parameters from DB name
+    export AUTHENTIK_DB_NAME="${AUTHENTIK_DB_NAME%%\?*}"
+}
+
+# -----------------------------------------------------------------------------
+# Authentik Dev Mode
+# -----------------------------------------------------------------------------
+start_authentik() {
+    echo -e "${YELLOW}[AUTHENTIK]${NC} Starting Authentik IDP..."
+    
+    # Generate secret key if not set
+    if [ -z "$AUTHENTIK_SECRET_KEY" ]; then
+        echo -e "       Generating AUTHENTIK_SECRET_KEY..."
+        export AUTHENTIK_SECRET_KEY=$(openssl rand -base64 32)
+        echo "AUTHENTIK_SECRET_KEY=$AUTHENTIK_SECRET_KEY" >> .env
+        echo -e "       ${GREEN}Secret key saved to .env${NC}"
+    fi
+    
+    # Start Authentik services with local PostgreSQL
+    echo -e "       Starting containers (PostgreSQL + Redis + Authentik)..."
+    if command -v docker-compose &> /dev/null; then
+        AUTHENTIK_SECRET_KEY="$AUTHENTIK_SECRET_KEY" \
+        docker-compose -f docker-compose.authentik.yml pull
+        AUTHENTIK_SECRET_KEY="$AUTHENTIK_SECRET_KEY" \
+        docker-compose -f docker-compose.authentik.yml up -d > logs/authentik.log 2>&1
+    else
+        AUTHENTIK_SECRET_KEY="$AUTHENTIK_SECRET_KEY" \
+        docker compose -f docker-compose.authentik.yml pull
+        AUTHENTIK_SECRET_KEY="$AUTHENTIK_SECRET_KEY" \
+        docker compose -f docker-compose.authentik.yml up -d > logs/authentik.log 2>&1
+    fi
+    
+    # Wait for Authentik to be ready
+    echo -n "       Waiting for Authentik..."
+    for i in {1..60}; do
+        if curl -s http://localhost:${PORT_AUTHENTIK}/api/v3/core/workers/ > /dev/null 2>&1; then
+            echo -e " ${GREEN}OK!${NC}"
+            echo -e "       Access: ${CYAN}http://localhost:${PORT_AUTHENTIK}/if/flow/initial-setup/${NC}"
+            AUTHENTIK_READY=true
+            break
+        fi
+        sleep 2
+        echo -n "."
+    done
+    
+    if [ "$AUTHENTIK_READY" != "true" ]; then
+        echo -e " ${YELLOW}Starting (check logs/authentik.log)${NC}"
+        echo -e "       Authentik may take a few minutes on first start."
+        echo -e "       Access: ${CYAN}http://localhost:${PORT_AUTHENTIK}${NC}"
+    fi
+}
+
+stop_authentik() {
+    echo -e "${YELLOW}Stopping Authentik...${NC}"
+    if command -v docker-compose &> /dev/null; then
+        docker-compose -f docker-compose.authentik.yml down
+    else
+        docker compose -f docker-compose.authentik.yml down
+    fi
+}
+
+# If authentik-only mode, just start Authentik and exit
+if [ "$AUTHENTIK_ONLY" = true ]; then
+    start_authentik
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}   🔐 Authentik is running!${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "   Admin:  ${CYAN}http://localhost:${PORT_AUTHENTIK}/if/admin/${NC}"
+    echo -e "   Setup:  ${CYAN}http://localhost:${PORT_AUTHENTIK}/if/flow/initial-setup/${NC}"
+    echo ""
+    echo -e "${YELLOW}Press Ctrl+C to stop Authentik${NC}"
+    
+    # Trap for cleanup
+    trap "stop_authentik; exit 0" SIGINT
+    
+    # Stream Authentik logs
+    if command -v docker-compose &> /dev/null; then
+        docker-compose -f docker-compose.authentik.yml logs -f
+    else
+        docker compose -f docker-compose.authentik.yml logs -f
+    fi
+    exit 0
+fi
+
 # -----------------------------------------------------------------------------
 # 1. Database (Docker or Supabase Cloud)
 # -----------------------------------------------------------------------------
-# Load .env first to check DATABASE_URL
-if [ -f ".env" ]; then
-    source .env
-fi
-
 # Check if using Supabase Cloud (URL contains supabase.co)
 if [[ "$DATABASE_URL" == *"supabase.co"* ]]; then
     echo -e "${YELLOW}[1/6]${NC} Database: ${GREEN}Supabase Cloud${NC} (skipping Docker)"
@@ -79,13 +234,6 @@ if [ -d ".venv" ]; then
 else
     echo -e "${RED}Error: .venv directory not found! Run 'python3 -m venv .venv && source .venv/bin/activate && pip install -r src/requirements.txt' first.${NC}"
     exit 1
-fi
-
-# Load .env file if it exists
-if [ -f ".env" ]; then
-    set -a  # Export all variables
-    source .env
-    set +a
 fi
 
 # TTS Configuration (ElevenLabs API)
@@ -130,6 +278,12 @@ if ss -tln | grep -q ":${PORT_MCP} "; then
      fi
 fi
 
+# -----------------------------------------------------------------------------
+# 3. Start Authentik (if requested)
+# -----------------------------------------------------------------------------
+if [ "$WITH_AUTHENTIK" = true ]; then
+    start_authentik
+fi
 
 # Start MCP Server
 echo -e "${YELLOW}[4/6]${NC} Starting MCP Server on port ${PORT_MCP}..."
@@ -195,6 +349,12 @@ cleanup() {
     kill $BACKEND_PID 2>/dev/null || true
     # Also kill any other instances
     pkill -P $$ 2>/dev/null || true
+    
+    # Stop Authentik if it was started
+    if [ "$WITH_AUTHENTIK" = true ]; then
+        stop_authentik
+    fi
+    
     echo -e "${GREEN}Services stopped.${NC}"
     exit 0
 }
@@ -206,7 +366,10 @@ echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}   🚀 AURA is ready!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "   Access: ${BLUE}http://localhost:${PORT_BACKEND}/admin_console.html${NC}"
+echo -e "   Backend: ${BLUE}http://localhost:${PORT_BACKEND}/admin_console.html${NC}"
+if [ "$WITH_AUTHENTIK" = true ]; then
+    echo -e "   Authentik: ${CYAN}http://localhost:${PORT_AUTHENTIK}/if/admin/${NC}"
+fi
 echo ""
 echo -e "${YELLOW}[6/6]${NC} Streaming logs (Press Ctrl+C to stop)..."
 echo -e "      (backend.log, mcp.log)"

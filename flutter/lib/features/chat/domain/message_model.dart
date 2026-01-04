@@ -1,14 +1,16 @@
 /// Project Aura - Message Model
 /// =============================
 /// Immutable message model using freezed.
+library;
 
+// ignore_for_file: invalid_annotation_target
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'message_model.freezed.dart';
 part 'message_model.g.dart';
 
 @freezed
-class Message with _$Message {
+abstract class Message with _$Message {
   const factory Message({
     required String id,
     required String text,

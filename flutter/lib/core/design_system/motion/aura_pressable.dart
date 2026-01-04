@@ -20,6 +20,7 @@
 ///   child: MyIcon(),
 /// )
 /// ```
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -106,8 +107,25 @@ class AuraPressable extends StatefulWidget {
 
 class _AuraPressableState extends State<AuraPressable> {
   bool _isPressed = false;
+  bool _isDisposed = false;
 
   bool get _isEnabled => widget.onPressed != null || widget.onLongPress != null;
+
+  /// Safe setState that won't throw during disposal
+  void _safeSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    try {
+      setState(fn);
+    } catch (_) {
+      // Ignore setState errors during disposal
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   double get _pressScale {
     if (widget.customPressScale != null) return widget.customPressScale!;
@@ -134,7 +152,9 @@ class _AuraPressableState extends State<AuraPressable> {
   }
 
   Duration get _releaseDuration {
-    if (widget.customReleaseDuration != null) return widget.customReleaseDuration!;
+    if (widget.customReleaseDuration != null) {
+      return widget.customReleaseDuration!;
+    }
     switch (widget.style) {
       case PressableStyle.tension:
         return AuraMotion.tension.releaseDuration;
@@ -168,8 +188,8 @@ class _AuraPressableState extends State<AuraPressable> {
   }
 
   void _handleTapDown(TapDownDetails details) {
-    if (!_isEnabled) return;
-    setState(() => _isPressed = true);
+    if (!_isEnabled || _isDisposed) return;
+    _safeSetState(() => _isPressed = true);
     if (widget.enableHaptics) {
       switch (widget.style) {
         case PressableStyle.tension:
@@ -186,16 +206,22 @@ class _AuraPressableState extends State<AuraPressable> {
   }
 
   void _handleTapUp(TapUpDetails details) {
-    if (!_isEnabled) return;
-    setState(() => _isPressed = false);
+    if (_isDisposed) return;
+    _safeSetState(() => _isPressed = false);
     if (widget.enableHaptics) {
       AuraHaptics.sacrifice();
     }
-    widget.onPressed?.call();
+    // Note: onPressed callback is now fired in _handleTap for reliability
   }
 
   void _handleTapCancel() {
-    setState(() => _isPressed = false);
+    if (_isDisposed) return;
+    _safeSetState(() => _isPressed = false);
+  }
+
+  void _handleTap() {
+    if (!_isEnabled || _isDisposed) return;
+    widget.onPressed?.call();
   }
 
   void _handleLongPress() {
@@ -211,6 +237,7 @@ class _AuraPressableState extends State<AuraPressable> {
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
+      onTap: _handleTap,
       onLongPress: widget.onLongPress != null ? _handleLongPress : null,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
@@ -227,7 +254,7 @@ class _AuraPressableState extends State<AuraPressable> {
           .animate(target: _isPressed ? 0 : 1)
           .shimmer(
             duration: 600.ms,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
             curve: Curves.easeOut,
           );
     }

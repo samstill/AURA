@@ -6,6 +6,7 @@
 /// ```dart
 /// import 'package:project_aura/core/design_system/design_system.dart';
 /// ```
+library;
 
 // Theme
 export 'theme/aura_colors.dart';
@@ -25,3 +26,7 @@ export 'atoms/aura_icon.dart';
 export 'atoms/aura_jelly_button.dart';
 export 'atoms/aura_toggle.dart';
 export 'atoms/splash_screen_icon.dart';
+export 'atoms/aura_nucleus.dart';
+export 'atoms/aura_summary_sheet.dart';
+export 'atoms/aura_bottom_nav.dart';
+export 'atoms/aura_bottom_sheet.dart';

@@ -1,12 +1,14 @@
 /// Project Aura - Auth Repository
 /// ===============================
 /// Handles authentication via Authentik Flows API.
+library;
 
 import 'dart:convert';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// import 'package:flutter_riverpod/flutter_riverpod.dart'; // Unnecessary
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../api/dio_client.dart';
@@ -36,7 +38,7 @@ class FlowResult {
 
 /// Auth repository provider
 @Riverpod(keepAlive: true)
-Future<AuthRepository> authRepository(AuthRepositoryRef ref) async {
+Future<AuthRepository> authRepository(Ref ref) async {
   final client = await ref.watch(authentikClientProvider.future);
   final cookieJar = await ref.watch(cookieJarProvider.future);
   

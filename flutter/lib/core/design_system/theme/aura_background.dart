@@ -11,6 +11,7 @@
 ///   child: Scaffold(...),
 /// )
 /// ```
+library;
 
 import 'package:flutter/material.dart';
 import 'aura_colors.dart';

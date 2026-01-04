@@ -10,6 +10,7 @@
 /// myWidget.withJelly(onPressed: () {})
 /// myWidget.withIce()  // Slow fade in
 /// ```
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -150,7 +151,7 @@ extension AuraAnimationExtensions on Widget {
     return animate(onPlay: (controller) => controller.repeat())
         .shimmer(
           duration: duration ?? const Duration(milliseconds: 1500),
-          color: color ?? Colors.white.withOpacity(0.3),
+          color: color ?? Colors.white.withValues(alpha: 0.3),
         );
   }
 

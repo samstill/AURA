@@ -2,6 +2,7 @@
 /// =============================
 /// Animated splash screen with SVGator logo and "Encresa Aura" text.
 /// Uses the reusable AuraAnimatedBackground component.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -32,11 +33,11 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _textController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: AuraMotion.dramatic, // Was: 1500ms
     );
 
     // Start text animation after a delay
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(AuraMotion.ice, () { // Was: 800ms
       if (mounted) {
         _textController.forward();
       }
@@ -73,12 +74,12 @@ class _SplashScreenState extends State<SplashScreen>
                 height: 200,
               )
                   .animate()
-                  .fadeIn(duration: 600.ms)
+                  .fadeIn(duration: AuraMotion.deliberate) // Was: 600ms
                   .scale(
                     begin: const Offset(0.8, 0.8),
                     end: const Offset(1.0, 1.0),
-                    duration: 800.ms,
-                    curve: Curves.easeOutBack,
+                    duration: AuraMotion.ice, // Was: 800ms
+                    curve: AuraMotion.spring, // Was: Curves.easeOutBack
                   ),
 
               const SizedBox(height: 32),
@@ -105,8 +106,8 @@ class _SplashScreenState extends State<SplashScreen>
                         fontWeight: FontWeight.w400,
                         letterSpacing: 8,
                         color: isDark
-                            ? Colors.white.withOpacity(0.5)
-                            : Colors.black.withOpacity(0.4),
+                            ? Colors.white.withValues(alpha: 0.5)
+                            : Colors.black.withValues(alpha: 0.4),
                       ),
                     ),
                     const SizedBox(height: 4),

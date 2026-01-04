@@ -1,0 +1,101 @@
+version: 1
+metadata:
+  name: encresa-aura-config
+  labels:
+    env: production
+
+entries:
+  # ===========================================================================
+  # OAuth2 Provider - Mobile & Backend
+  # ===========================================================================
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-openid
+    identifiers:
+      name: "openid"
+      managed: "goauthentik.io/providers/oauth2/scope-openid"
+
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-profile
+    identifiers:
+      name: "profile"
+      managed: "goauthentik.io/providers/oauth2/scope-profile"
+
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-email
+    identifiers:
+      name: "email"
+      managed: "goauthentik.io/providers/oauth2/scope-email"
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-aura
+    identifiers:
+      name: "AURA Mobile"
+    attrs:
+      client_id: "XxxliVFhCdjYqGEsp0jkeCCRFchIPeYcPwh5XFSQ"
+      # Note: Secrets are usually auto-generated for confidential, but this is Public for mobile
+      client_type: "public"
+      access_code_validity: "minutes=1"
+      access_token_validity: "minutes=5"
+      refresh_token_validity: "days=30"
+      property_mappings:
+        - scope-openid
+        - scope-profile
+        - scope-email
+      redirect_uris: "com.encresa.aura://login-callback"
+      signing_key: null
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-aura-backend
+    identifiers:
+      name: "AURA Backend"
+    attrs:
+      client_id: "aura-backend-client-id"
+      # Confidential client requiring secret
+      client_type: "confidential"
+      client_secret: "aura-backend-super-secret-key"
+      access_code_validity: "minutes=1"
+      access_token_validity: "minutes=5"
+      refresh_token_validity: "days=30"
+      property_mappings:
+        - scope-openid
+        - scope-profile
+        - scope-email
+      redirect_uris: "https://auth.encresa.com/callback"
+      signing_key: null
+
+  # ===========================================================================
+  # Application
+  # ===========================================================================
+  - model: authentik_core.application
+    id: app-aura
+    identifiers:
+      slug: "aura"
+    attrs:
+      name: "Encresa Aura"
+      provider: provider-aura
+      meta_icon: "/static/dist/assets/aura-logo.png"
+
+  # ===========================================================================
+  # Branding
+  # ===========================================================================
+  - model: authentik_core.file
+    id: file-icon
+    identifiers:
+      name: "aura-icon"
+    attrs:
+      path: "/static/dist/assets/aura-icon.svg"
+      meta:
+        type: "image"
+
+  - model: authentik_core.file
+    id: file-background
+    identifiers:
+      name: "aura-background"
+    attrs:
+      path: "/static/dist/assets/aura-background.png"
+      meta:
+        type: "image"
+
+  # Note: Brand creation via blueprint is complex because it depends on the default tenant.
+  # It is safer to instruct the user to set the Brand manually or use a startup script,
+  # but we can define the application configuration robustly.

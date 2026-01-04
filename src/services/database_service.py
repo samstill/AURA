@@ -57,6 +57,7 @@ class DatabaseService:
                     command_timeout=30,
                 )
             print("✅ Database connection pool established")
+            await self._ensure_tables()
         except Exception as e:
             print(f"⚠️ Database connection failed: {e}")
             import traceback
@@ -69,6 +70,25 @@ class DatabaseService:
         if self.pool:
             await self.pool.close()
             print("🔌 Database connection pool closed")
+
+    async def _ensure_tables(self):
+        """Ensure necessary tables exist."""
+        if not self.pool: return
+        
+        async with self.pool.acquire() as conn:
+            # Secretary Tasks Table
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS secretary_tasks (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL, -- 'completed', 'failed', 'processing'
+                    result TEXT,
+                    is_read BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_st_user_status ON secretary_tasks(user_id, status);
+            """)
     
     async def health_check(self) -> bool:
         """Check if the database is accessible."""
@@ -219,7 +239,68 @@ class DatabaseService:
                 tool_id
             )
             # result string format: "UPDATE <count>"
+            # result string format: "UPDATE <count>"
             return result != "UPDATE 0"
+
+    # -------------------------------------------------------------------------
+    # Secretary Task Operations
+    # -------------------------------------------------------------------------
+    async def create_task(self, user_id: str, title: str, status: str, result: str = None) -> dict:
+        """Create a new secretary task."""
+        if not self.pool: raise RuntimeError("Database not connected")
+        
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO secretary_tasks (user_id, title, status, result)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *
+                """,
+                user_id, title, status, result
+            )
+            return dict(row)
+
+    async def get_tasks(self, user_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Get tasks for a user, newest first."""
+        if not self.pool: raise RuntimeError("Database not connected")
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM secretary_tasks 
+                WHERE user_id = $1 
+                ORDER BY created_at DESC 
+                LIMIT $2 OFFSET $3
+                """,
+                user_id, limit, offset
+            )
+            return [dict(row) for row in rows]
+
+    async def get_task_stats(self, user_id: str) -> dict:
+        """Get summary stats (total unread)."""
+        if not self.pool: raise RuntimeError("Database not connected")
+        
+        async with self.pool.acquire() as conn:
+            unread = await conn.fetchval(
+                "SELECT COUNT(*) FROM secretary_tasks WHERE user_id = $1 AND is_read = FALSE",
+                user_id
+            )
+            total = await conn.fetchval(
+                "SELECT COUNT(*) FROM secretary_tasks WHERE user_id = $1",
+                user_id
+            )
+            return {"unread": unread, "total": total}
+
+    async def mark_task_read(self, task_id: int, user_id: str) -> bool:
+        """Mark a task as read."""
+        if not self.pool: raise RuntimeError("Database not connected")
+        
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                "UPDATE secretary_tasks SET is_read = TRUE WHERE id = $1 AND user_id = $2",
+                task_id, user_id
+            )
+            return res != "UPDATE 0"
 
 
 # Singleton instance
