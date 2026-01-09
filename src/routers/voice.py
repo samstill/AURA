@@ -89,21 +89,30 @@ async def voice_stream(
     token: Optional[str] = Query(None),
 ):
     """
-    Real-time Voice Pipeline WebSocket.
+    Real-time Voice Pipeline WebSocket with Audio Streaming.
     
     Authentication: Pass access token as query parameter `?token=<access_token>`
     
     Protocol:
-    1. Client -> {"text": "What is my schedule?"}
-    2. Server -> Binary Audio Chunk ...
-    3. Server -> Binary Audio Chunk ...
-    4. Server -> {"status": "turn_complete"}
+    1. Client -> Binary audio data (WAV/WebM chunks)
+    2. Client -> {"action": "end_turn"} when done speaking
+    3. Server -> {"type": "transcription", "text": "..."} 
+    4. Server -> Binary Audio Chunks (TTS response)
+    5. Server -> {"status": "turn_complete"}
     
     Message Types (JSON):
-    - {"type": "authenticated", "user": {...}}
+    - {"type": "authenticated", "user": {...}} - Connection successful
+    - {"type": "transcription", "text": "..."} - User's transcribed speech
+    - {"type": "processing"} - AI is thinking
     - {"status": "turn_complete"} - End of response turn
     - {"type": "error", "message": "..."} - Error occurred
+    
+    Client can also send:
+    - {"text": "..."} - Direct text input (skips STT)
+    - {"action": "end_turn"} - Signal end of audio input
     """
+    from services.stt_service import stt_service
+    
     # Validate token before accepting connection
     if not token:
         await websocket.close(code=4001, reason="Missing authentication token")
@@ -119,6 +128,9 @@ async def voice_stream(
     user_id = user_info.get('sub', 'unknown')
     logger.info(f"🎤 Voice WebSocket connected for user: {user_id}")
     
+    # Audio buffer for accumulating chunks
+    audio_buffer: list[bytes] = []
+    
     try:
         # Send authentication confirmation
         await websocket.send_json({
@@ -128,43 +140,86 @@ async def voice_stream(
                 "name": user_info.get("name"),
                 "email": user_info.get("email"),
             },
-            "message": "Voice stream connected. Send {\"text\": \"...\"} to start."
+            "message": "Voice stream connected. Send audio bytes or {\"text\": \"...\"} to start."
         })
         
         while True:
-            # 1. Wait for user input (Text from Client STT)
-            data = await websocket.receive_json()
-            user_text = data.get("text")
+            # Receive message (can be binary audio or JSON)
+            message = await websocket.receive()
             
-            if not user_text:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Missing 'text' field in request"
-                })
+            if "bytes" in message:
+                # Binary audio data - buffer it
+                audio_buffer.append(message["bytes"])
                 continue
                 
-            logger.info(f"🎤 Heard from {user_id}: {user_text[:50]}...")
+            elif "text" in message:
+                data = json.loads(message["text"])
+                
+                # Check for end_turn signal
+                if data.get("action") == "end_turn" and audio_buffer:
+                    # Transcribe accumulated audio
+                    combined_audio = b"".join(audio_buffer)
+                    audio_buffer.clear()
+                    
+                    if len(combined_audio) < 1000:  # Too short
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Audio too short. Please speak longer."
+                        })
+                        continue
+                    
+                    # STT - Whisper transcription
+                    await websocket.send_json({"type": "transcribing"})
+                    user_text = await stt_service.transcribe_audio(combined_audio, format="webm")
+                    
+                    if not user_text:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Could not understand audio. Please try again."
+                        })
+                        continue
+                    
+                    # Send transcription back to client
+                    await websocket.send_json({
+                        "type": "transcription",
+                        "text": user_text
+                    })
+                    
+                # Direct text input (skip STT)
+                elif "text" in data:
+                    user_text = data["text"]
+                    audio_buffer.clear()  # Clear any buffered audio
+                else:
+                    continue
+                
+                if not user_text:
+                    continue
+                    
+                logger.info(f"🎤 Heard from {user_id}: {user_text[:50]}...")
+                
+                # Signal processing
+                await websocket.send_json({"type": "processing"})
 
-            # 2. Ignite the Brain (Get Text Stream with routing)
-            brain_stream = orchestrator_service.stream_voice_response(
-                user_text, 
-                user_id
-            )
+                # 2. Ignite the Brain (Get Text Stream with routing)
+                brain_stream = orchestrator_service.stream_voice_response(
+                    user_text, 
+                    user_id
+                )
 
-            # 3. Ignite the Mouth (Convert to Audio Stream)
-            audio_stream = tts_service.stream_audio(brain_stream)
+                # 3. Ignite the Mouth (Convert to Audio Stream)
+                audio_stream = tts_service.stream_audio(brain_stream)
 
-            # 4. Stream audio bytes to client
-            chunk_count = 0
-            async for audio_chunk in audio_stream:
-                if audio_chunk:
-                    await websocket.send_bytes(audio_chunk)
-                    chunk_count += 1
-            
-            logger.info(f"🔊 Sent {chunk_count} audio chunks to {user_id}")
-            
-            # 5. Signal end of turn (so client stops listening/waiting)
-            await websocket.send_json({"status": "turn_complete"})
+                # 4. Stream audio bytes to client
+                chunk_count = 0
+                async for audio_chunk in audio_stream:
+                    if audio_chunk:
+                        await websocket.send_bytes(audio_chunk)
+                        chunk_count += 1
+                
+                logger.info(f"🔊 Sent {chunk_count} audio chunks to {user_id}")
+                
+                # 5. Signal end of turn (so client stops listening/waiting)
+                await websocket.send_json({"status": "turn_complete"})
 
     except WebSocketDisconnect:
         logger.info(f"🔌 Voice Client Disconnected: {user_id}")

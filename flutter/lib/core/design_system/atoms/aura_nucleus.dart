@@ -36,11 +36,17 @@ class AuraNucleus extends StatefulWidget {
   /// Current voice state when active
   final NucleusVoiceState voiceState;
 
-  /// Callback when the nucleus is tapped
+  /// Callback when the nucleus is tapped (when inactive = start secretary)
   final VoidCallback? onTap;
 
-  /// Callback when the nucleus is long pressed (activation)
+  /// Callback when the nucleus is tapped while active (stop/end turn)
+  final VoidCallback? onActiveTap;
+
+  /// Callback when the nucleus is short pressed (start secretary voice)
   final VoidCallback? onActivate;
+
+  /// Callback when the nucleus is long pressed (OpenAI Realtime)
+  final VoidCallback? onLongPress;
 
   /// Size of the nucleus
   final double size;
@@ -50,7 +56,9 @@ class AuraNucleus extends StatefulWidget {
     this.isActive = false,
     this.voiceState = NucleusVoiceState.silence,
     this.onTap,
+    this.onActiveTap,
     this.onActivate,
+    this.onLongPress,
     this.size = 100,
   });
 
@@ -151,11 +159,21 @@ class _AuraNucleusState extends State<AuraNucleus>
     if (_isDisposed) return;
     if (_isPressed) {
       _safeSetState(() => _isPressed = false);
+      // Short tap when inactive = start secretary voice
       widget.onActivate?.call();
       HapticFeedback.mediumImpact();
     } else if (widget.isActive) {
-      widget.onTap?.call();
+      // Tap when active = stop/end turn
+      widget.onActiveTap?.call();
     }
+  }
+
+  void _handleLongPress() {
+    if (widget.isActive || _isDisposed) return;
+    _safeSetState(() => _isPressed = false);
+    // Long press = OpenAI Realtime
+    widget.onLongPress?.call();
+    HapticFeedback.heavyImpact();
   }
 
   void _handlePressCancel() {
@@ -216,6 +234,7 @@ class _AuraNucleusState extends State<AuraNucleus>
             onTapDown: (_) => _handlePressStart(),
             onTapUp: (_) => _handlePressEnd(),
             onTapCancel: _handlePressCancel,
+            onLongPress: _handleLongPress,
             child: AnimatedBuilder(
               animation: Listenable.merge([
                 _pulseAnimation,

@@ -1,15 +1,34 @@
 /// Dashboard - Home Tab
 /// =====================
 /// Home tab content showing Nucleus and Summary Sheet.
-/// This is displayed inside the DashboardShell.
+/// Fetches real data from backend using Riverpod providers.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/design_system/design_system.dart';
+import '../../../voice/voice_controller.dart';
+import '../../data/task_repository.dart';
+
+part 'home_tab.g.dart';
+
+/// Provider for secretary brief data with auto-refresh
+@riverpod
+Future<SecretaryBrief> secretaryBrief(Ref ref) async {
+  final repo = await ref.watch(taskRepositoryProvider.future);
+  return repo.getSecretaryBrief();
+}
+
+/// Provider for notifications list
+@riverpod
+Future<List<NotificationItem>> notifications(Ref ref) async {
+  final repo = await ref.watch(taskRepositoryProvider.future);
+  return repo.getNotifications();
+}
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -19,199 +38,235 @@ class HomeTab extends ConsumerStatefulWidget {
 }
 
 class _HomeTabState extends ConsumerState<HomeTab> {
-  bool _isNucleusActive = false;
-  NucleusVoiceState _voiceState = NucleusVoiceState.silence;
-
-  // Mock data for demo - Secretary background tasks in progress
-  final List<Map<String, dynamic>> _processingTasks = [
-    {
-      'title': 'Summarizing email inbox',
-      'status': 'Processing 34 emails...',
-      'progress': 0.65,
-      'icon': 'mail',
-    },
-    {
-      'title': 'Syncing calendar events',
-      'status': 'Fetching from Google Calendar',
-      'progress': 0.8,
-      'icon': 'calendar',
-    },
-    {
-      'title': 'Preparing daily briefing',
-      'status': 'Analyzing priorities...',
-      'progress': 0.25,
-      'icon': 'clipboard',
-    },
-  ];
-
-  // Mock data for demo - Notifications (including completed secretary tasks)
-  final List<Map<String, dynamic>> _unreadNotifications = [
-    {
-      'title': 'Email summary ready',
-      'description': '12 important emails flagged',
-      'time': '2 min ago',
-      'type': 'completed',
-    },
-    {
-      'title': 'Meeting reminder',
-      'description': 'Design Review in 30 minutes',
-      'time': '5 min ago',
-      'type': 'reminder',
-    },
-    {
-      'title': 'Task completed',
-      'description': 'Calendar sync finished successfully',
-      'time': '15 min ago',
-      'type': 'completed',
-    },
-    {
-      'title': 'New message from Sarah',
-      'description': 'Regarding the Q4 proposal',
-      'time': '1 hour ago',
-      'type': 'message',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Nucleus area
-        Expanded(
-          flex: 2,
-          child: Center(
-            child: AuraNucleus(
-              isActive: _isNucleusActive,
-              voiceState: _voiceState,
-              size: 100,
-              onActivate: _handleNucleusActivate,
-              onTap: _handleNucleusTap,
-            ),
-          ),
-        ),
+    final briefAsync = ref.watch(secretaryBriefProvider);
+    final notificationsAsync = ref.watch(notificationsProvider);
+    
+    // Watch voice session state
+    final voiceSession = ref.watch(voiceControllerProvider);
+    final isVoiceActive = voiceSession.state != VoiceState.idle;
+    final nucleusVoiceState = _mapVoiceState(voiceSession.state);
 
-        // Summary Sheet
-        Expanded(
-          flex: 3,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 100),
-            child: AuraSummarySheet(
-              title: 'Summary',
-              sectionLabel: 'Analysis',
-              content:
-                  'The silence has been observed. No active disturbances detected in the local field. The Nucleus remains in a state of dormant waiting.',
-              stats: [
-                SummaryStatItem(
-                  label: 'Tasks',
-                  value: _processingTasks.length,
-                  onTap: () => _showTasksSheet(context),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      color: AuraColors.halo,
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              // Nucleus area
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: AuraNucleus(
+                    isActive: isVoiceActive,
+                    voiceState: nucleusVoiceState,
+                    size: 100,
+                    onActivate: _handleSecretaryVoice,    // Short tap = secretary
+                    onActiveTap: _handleNucleusTap,       // Tap while active = end turn
+                    onLongPress: _handleOpenAIRealtime,   // Long press = OpenAI
+                  ),
                 ),
-                SummaryStatItem(
-                  label: 'Unread',
-                  value: _unreadNotifications.length,
-                  valueColor: AuraColors.tether,
-                  onTap: () => _showUnreadSheet(context),
+              ),
+
+              // Summary Sheet
+              Expanded(
+                flex: 3,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 100),
+                  child: briefAsync.when(
+                    data: (brief) => _buildSummarySheet(context, brief, notificationsAsync),
+                    loading: () => _buildLoadingSheet(context),
+                    error: (e, _) => _buildErrorSheet(context, e),
+                  ),
                 ),
-              ],
-              onExpand: () => context.push('/background-tasks'),
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+          
+          // Voice feedback overlay
+          if (isVoiceActive)
+            _VoiceFeedbackOverlay(
+              session: voiceSession,
+              onDismiss: () => ref.read(voiceControllerProvider.notifier).stopSession(),
+            ),
+        ],
+      ),
     );
   }
 
-  void _showTasksSheet(BuildContext context) {
-    showAuraListBottomSheet(
+  Widget _buildSummarySheet(
+    BuildContext context, 
+    SecretaryBrief brief,
+    AsyncValue<List<NotificationItem>> notificationsAsync,
+  ) {
+    final notificationCount = notificationsAsync.when(
+      data: (list) => list.length,
+      loading: () => brief.count,
+      error: (_, __) => brief.count,
+    );
+    
+    return AuraSummarySheet(
+      title: 'Summary',
+      sectionLabel: 'Secretary Brief',
+      content: brief.brief,
+      stats: [
+        SummaryStatItem(
+          label: 'Tasks',
+          value: brief.items.where((n) => n.type == 'task').length,
+          onTap: () => _showTasksSheet(context, brief.items),
+        ),
+        SummaryStatItem(
+          label: 'Unread',
+          value: notificationCount,
+          valueColor: notificationCount > 0 ? AuraColors.tether : null,
+          onTap: () => _showUnreadSheet(context, notificationsAsync),
+        ),
+      ],
+      onExpand: () => context.push('/background-tasks'),
+    );
+  }
+
+  Widget _buildLoadingSheet(BuildContext context) {
+    return AuraSummarySheet(
+      title: 'Summary',
+      sectionLabel: 'Loading...',
+      content: 'Fetching your secretary brief...',
+      stats: [
+        SummaryStatItem(label: 'Tasks', value: 0, onTap: () {}),
+        SummaryStatItem(label: 'Unread', value: 0, onTap: () {}),
+      ],
+      onExpand: () {},
+    );
+  }
+
+  Widget _buildErrorSheet(BuildContext context, Object error) {
+    return AuraSummarySheet(
+      title: 'Summary',
+      sectionLabel: 'Connection Issue',
+      content: 'Unable to connect to the server. Pull down to retry.',
+      stats: [
+        SummaryStatItem(label: 'Tasks', value: 0, onTap: () {}),
+        SummaryStatItem(label: 'Unread', value: 0, onTap: () {}),
+      ],
+      onExpand: () {},
+    );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(secretaryBriefProvider);
+    ref.invalidate(notificationsProvider);
+    // Wait for the provider to refresh
+    await ref.read(secretaryBriefProvider.future);
+  }
+
+  void _showTasksSheet(BuildContext context, List<NotificationItem> items) {
+    final tasks = items.where((n) => n.type == 'task' || n.type == 'background').toList();
+    
+    showAuraListBottomSheet<void, NotificationItem>(
       context: context,
       title: 'Processing Tasks',
       icon: LucideIcons.loader,
-      items: _processingTasks,
+      items: tasks,
       emptyMessage: 'No active tasks',
-      itemBuilder: (item, index) => _ProcessingTaskItem(
-        title: item['title'],
-        status: item['status'],
-        progress: item['progress'],
-        iconType: item['icon'],
-      ),
+      itemBuilder: (dynamic item, int index) => _TaskItem(item: item as NotificationItem),
     );
   }
 
-  void _showUnreadSheet(BuildContext context) {
-    showAuraListBottomSheet(
+  void _showUnreadSheet(BuildContext context, AsyncValue<List<NotificationItem>> notificationsAsync) {
+    final notifications = notificationsAsync.when(
+      data: (list) => list,
+      loading: () => <NotificationItem>[],
+      error: (_, __) => <NotificationItem>[],
+    );
+    
+    showAuraListBottomSheet<void, NotificationItem>(
       context: context,
       title: 'Notifications',
       icon: LucideIcons.bell,
-      items: _unreadNotifications,
+      items: notifications,
       emptyMessage: 'All caught up!',
-      itemBuilder: (item, index) => _NotificationItem(
-        title: item['title'],
-        description: item['description'],
-        time: item['time'],
-        type: item['type'],
-      ),
+      itemBuilder: (dynamic item, int index) {
+        final notification = item as NotificationItem;
+        return _NotificationItemWidget(
+          item: notification,
+          onMarkRead: () => _markAsRead(notification.id),
+        );
+      },
     );
   }
 
-  void _handleNucleusActivate() {
-    setState(() {
-      _isNucleusActive = true;
-      _voiceState = NucleusVoiceState.silence;
-    });
-    _simulateVoiceActivity();
+  Future<void> _markAsRead(String taskId) async {
+    try {
+      final repo = await ref.read(taskRepositoryProvider.future);
+      await repo.markNotificationRead(taskId);
+      ref.invalidate(notificationsProvider);
+      ref.invalidate(secretaryBriefProvider);
+    } catch (e) {
+      debugPrint('Failed to mark as read: $e');
+    }
   }
 
+  /// Short tap = Start backend secretary voice protocol
+  void _handleSecretaryVoice() {
+    ref.read(voiceControllerProvider.notifier).startSession();
+  }
+
+  /// Long press = Start OpenAI Realtime API (premium mode)
+  void _handleOpenAIRealtime() {
+    // TODO: Implement OpenAI Realtime API integration
+    // For now, show a snackbar indicating this feature
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('OpenAI Realtime coming soon! Using secretary voice...'),
+        backgroundColor: AuraColors.halo,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    // Fall back to secretary voice for now
+    _handleSecretaryVoice();
+  }
+
+  /// Tap while active = end turn or stop session
   void _handleNucleusTap() {
-    setState(() {
-      _isNucleusActive = false;
-      _voiceState = NucleusVoiceState.silence;
-    });
+    final voiceState = ref.read(voiceControllerProvider);
+    
+    if (voiceState.state == VoiceState.listening) {
+      // End turn - trigger STT
+      ref.read(voiceControllerProvider.notifier).endTurn();
+    } else if (voiceState.state != VoiceState.idle) {
+      // Stop session
+      ref.read(voiceControllerProvider.notifier).stopSession();
+    }
   }
 
-  void _simulateVoiceActivity() async {
-    if (!_isNucleusActive) return;
-
-    await Future.delayed(AuraMotion.dramatic);
-    if (!mounted || !_isNucleusActive) return;
-    setState(() => _voiceState = NucleusVoiceState.whisper);
-
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted || !_isNucleusActive) return;
-    setState(() => _voiceState = NucleusVoiceState.loud);
-
-    await Future.delayed(AuraMotion.deliberate);
-    if (!mounted || !_isNucleusActive) return;
-    setState(() => _voiceState = NucleusVoiceState.whisper);
-
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted || !_isNucleusActive) return;
-    setState(() => _voiceState = NucleusVoiceState.silence);
+  /// Map VoiceController state to Nucleus visual state
+  NucleusVoiceState _mapVoiceState(VoiceState state) {
+    switch (state) {
+      case VoiceState.listening:
+        return NucleusVoiceState.whisper;
+      case VoiceState.speaking:
+        return NucleusVoiceState.loud;
+      case VoiceState.transcribing:
+      case VoiceState.processing:
+        return NucleusVoiceState.whisper;
+      default:
+        return NucleusVoiceState.silence;
+    }
   }
 }
 
-// Processing task item widget for bottom sheet
-class _ProcessingTaskItem extends StatelessWidget {
-  final String title;
-  final String status;
-  final double progress;
-  final String iconType;
+/// Task item widget for bottom sheet
+class _TaskItem extends StatelessWidget {
+  final NotificationItem item;
 
-  const _ProcessingTaskItem({
-    required this.title,
-    required this.status,
-    required this.progress,
-    required this.iconType,
-  });
+  const _TaskItem({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final aura = context.aura;
-    final taskIcon = switch (iconType) {
-      'mail' => LucideIcons.mail,
-      'calendar' => LucideIcons.calendar,
-      'clipboard' => LucideIcons.clipboardList,
-      _ => LucideIcons.loader,
-    };
 
     return AuraSheetItem(
       leading: Container(
@@ -220,83 +275,237 @@ class _ProcessingTaskItem extends StatelessWidget {
           color: AuraColors.halo.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(taskIcon, color: AuraColors.halo, size: 18),
+        child: Icon(LucideIcons.loader, color: AuraColors.halo, size: 18),
       ),
-      title: title,
-      subtitle: status,
-      trailing: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 3,
-              backgroundColor: aura.textPrimary.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation(AuraColors.halo),
-            ),
-            Text(
-              '${(progress * 100).toInt()}%',
-              style: TextStyle(
-                fontFamily: 'Jura',
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: aura.textPrimary.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
+      title: item.title,
+      subtitle: item.description,
+      trailing: Text(
+        item.time,
+        style: TextStyle(
+          fontSize: 12,
+          color: aura.textPrimary.withValues(alpha: 0.5),
         ),
       ),
     );
   }
 }
 
-// Notification item widget for bottom sheet
-class _NotificationItem extends StatelessWidget {
-  final String title;
-  final String description;
-  final String time;
-  final String type;
+/// Notification item widget for bottom sheet
+class _NotificationItemWidget extends StatelessWidget {
+  final NotificationItem item;
+  final VoidCallback? onMarkRead;
 
-  const _NotificationItem({
-    required this.title,
-    required this.description,
-    required this.time,
-    required this.type,
+  const _NotificationItemWidget({
+    required this.item,
+    this.onMarkRead,
   });
 
   @override
   Widget build(BuildContext context) {
     final aura = context.aura;
-    
-    final (IconData icon, Color color) = switch (type) {
-      'completed' => (LucideIcons.checkCircle, AuraColors.tether),
-      'reminder' => (LucideIcons.clock, AuraColors.halo),
-      'message' => (LucideIcons.messageCircle, AuraColors.heartbeat),
+
+    final (IconData icon, Color color) = switch (item.type) {
+      'completed' || 'success' => (LucideIcons.checkCircle, AuraColors.tether),
+      'reminder' || 'calendar' => (LucideIcons.clock, AuraColors.halo),
+      'message' || 'chat' => (LucideIcons.messageCircle, AuraColors.heartbeat),
+      'error' || 'failed' => (LucideIcons.alertCircle, AuraColors.heartbeat),
       _ => (LucideIcons.bell, aura.textPrimary),
     };
 
-    return AuraSheetItem(
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onMarkRead,
+      child: AuraSheetItem(
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 18),
         ),
-        child: Icon(icon, color: color, size: 18),
+        title: item.title,
+        subtitle: '${item.description} • ${item.time}',
+        trailing: item.isRead
+            ? null
+            : Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
       ),
-      title: title,
-      subtitle: '$description • $time',
-      trailing: Container(
-        width: 8,
-        height: 8,
+    );
+  }
+}
+
+/// Voice feedback overlay showing transcription and status
+class _VoiceFeedbackOverlay extends StatelessWidget {
+  final VoiceSession session;
+  final VoidCallback onDismiss;
+
+  const _VoiceFeedbackOverlay({
+    required this.session,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final aura = context.aura;
+
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 120,
+      child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
+          color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _getStateColor().withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _getStateColor().withValues(alpha: 0.2),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Status icon and text
+            Row(
+              children: [
+                _buildStatusIcon(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getStatusText(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: aura.textPrimary,
+                        ),
+                      ),
+                      if (session.transcription != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '"${session.transcription}"',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontStyle: FontStyle.italic,
+                              color: aura.textPrimary.withValues(alpha: 0.7),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (session.errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            session.errorMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AuraColors.heartbeat,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onDismiss,
+                  icon: Icon(
+                    LucideIcons.x,
+                    size: 20,
+                    color: aura.textPrimary.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildStatusIcon() {
+    final color = _getStateColor();
+    final icon = _getStateIcon();
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  Color _getStateColor() {
+    switch (session.state) {
+      case VoiceState.listening:
+        return AuraColors.tether;
+      case VoiceState.transcribing:
+      case VoiceState.processing:
+        return AuraColors.halo;
+      case VoiceState.speaking:
+        return AuraColors.heartbeat;
+      case VoiceState.error:
+        return AuraColors.heartbeat;
+      default:
+        return AuraColors.halo;
+    }
+  }
+
+  IconData _getStateIcon() {
+    switch (session.state) {
+      case VoiceState.connecting:
+        return LucideIcons.wifi;
+      case VoiceState.listening:
+        return LucideIcons.mic;
+      case VoiceState.transcribing:
+        return LucideIcons.fileText;
+      case VoiceState.processing:
+        return LucideIcons.brain;
+      case VoiceState.speaking:
+        return LucideIcons.volume2;
+      case VoiceState.error:
+        return LucideIcons.alertCircle;
+      default:
+        return LucideIcons.mic;
+    }
+  }
+
+  String _getStatusText() {
+    switch (session.state) {
+      case VoiceState.connecting:
+        return 'Connecting...';
+      case VoiceState.listening:
+        return 'Listening... Tap when done';
+      case VoiceState.transcribing:
+        return 'Transcribing...';
+      case VoiceState.processing:
+        return 'Thinking...';
+      case VoiceState.speaking:
+        return 'Speaking...';
+      case VoiceState.error:
+        return 'Error';
+      default:
+        return 'Ready';
+    }
   }
 }
 

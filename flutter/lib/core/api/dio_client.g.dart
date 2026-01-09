@@ -47,23 +47,38 @@ final class CookieJarProvider extends $FunctionalProvider<AsyncValue<CookieJar>,
 String _$cookieJarHash() => r'10e1915dc23ef1c224e6624bc9b31bd5da40f159';
 
 /// Provides the configured Dio instance for API calls
+///
+/// This client includes:
+/// - AuthInterceptor for Bearer token injection
+/// - Automatic token refresh on 401
+/// - Structured error logging
 
 @ProviderFor(apiClient)
 final apiClientProvider = ApiClientProvider._();
 
 /// Provides the configured Dio instance for API calls
+///
+/// This client includes:
+/// - AuthInterceptor for Bearer token injection
+/// - Automatic token refresh on 401
+/// - Structured error logging
 
 final class ApiClientProvider
     extends $FunctionalProvider<AsyncValue<Dio>, Dio, FutureOr<Dio>>
     with $FutureModifier<Dio>, $FutureProvider<Dio> {
   /// Provides the configured Dio instance for API calls
+  ///
+  /// This client includes:
+  /// - AuthInterceptor for Bearer token injection
+  /// - Automatic token refresh on 401
+  /// - Structured error logging
   ApiClientProvider._()
       : super(
           from: null,
           argument: null,
           retry: null,
           name: r'apiClientProvider',
-          isAutoDispose: true,
+          isAutoDispose: false,
           dependencies: null,
           $allTransitiveDependencies: null,
         );
@@ -82,19 +97,31 @@ final class ApiClientProvider
   }
 }
 
-String _$apiClientHash() => r'cab954fe8e4eade4b6ef6dcae852b20cac9a88ae';
+String _$apiClientHash() => r'a01e9c0ff2da110239dc02f35cbb51adff8e9bad';
 
 /// Provides the configured Dio instance for Authentik API calls
+///
+/// This client is specifically for Authentik Flows API.
+/// Does NOT use AuthInterceptor (would cause circular dependency).
+/// Includes certificate pinning for auth.encresa.com in production.
 
 @ProviderFor(authentikClient)
 final authentikClientProvider = AuthentikClientProvider._();
 
 /// Provides the configured Dio instance for Authentik API calls
+///
+/// This client is specifically for Authentik Flows API.
+/// Does NOT use AuthInterceptor (would cause circular dependency).
+/// Includes certificate pinning for auth.encresa.com in production.
 
 final class AuthentikClientProvider
     extends $FunctionalProvider<AsyncValue<Dio>, Dio, FutureOr<Dio>>
     with $FutureModifier<Dio>, $FutureProvider<Dio> {
   /// Provides the configured Dio instance for Authentik API calls
+  ///
+  /// This client is specifically for Authentik Flows API.
+  /// Does NOT use AuthInterceptor (would cause circular dependency).
+  /// Includes certificate pinning for auth.encresa.com in production.
   AuthentikClientProvider._()
       : super(
           from: null,
@@ -120,4 +147,4 @@ final class AuthentikClientProvider
   }
 }
 
-String _$authentikClientHash() => r'4dbd25ad0d7a8190dc52fc168cf0e165cf6460ea';
+String _$authentikClientHash() => r'02f96245f9b06370c0ac349e056132467c19d80e';

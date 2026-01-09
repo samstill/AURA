@@ -33,6 +33,12 @@ class FlowResult {
     this.refreshToken,
   });
 
+  /// Create a failure result with an error message
+  factory FlowResult.failure(String message) => FlowResult(
+    success: false,
+    error: FlowError(nonFieldErrors: message),
+  );
+
   bool get needsMoreInput => challenge != null && !challenge!.isSuccess && !challenge!.isAccessDenied;
 }
 
@@ -476,4 +482,53 @@ class AuthRepository {
     debugPrint('🚪 Clearing tokens and session...');
     await clearSession();
   }
+
+  /// Refresh tokens with Authentik OAuth2 token endpoint
+  /// 
+  /// This method is called by AuthInterceptor when a 401 is received.
+  /// Returns the new tokens map or null if refresh fails.
+  Future<Map<String, dynamic>?> refreshTokensWithAuthentik(String refreshToken) async {
+    debugPrint('🔄 [AuthRepository] Refreshing tokens with Authentik...');
+    
+    try {
+      final response = await client.post(
+        '${AppConfig.authentikBaseUrl}/application/o/token/',
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {
+            'Accept': 'application/json',
+          },
+        ),
+        data: {
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+          'client_id': AppConfig.clientId,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        
+        // Save the new tokens
+        await saveTokens(
+          accessToken: data['access_token'] as String,
+          refreshToken: data['refresh_token'] as String?,
+          expiresIn: data['expires_in'] as int? ?? 300,
+        );
+        
+        // Update local session timestamp
+        await _saveLocalSession();
+        
+        debugPrint('✅ [AuthRepository] Tokens refreshed successfully');
+        return data;
+      }
+
+      debugPrint('❌ [AuthRepository] Token refresh failed: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ [AuthRepository] Token refresh error: $e');
+      return null;
+    }
+  }
 }
+

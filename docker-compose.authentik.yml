@@ -108,9 +108,10 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: aura-authentik-tunnel
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate run --protocol http2
     environment:
       - TUNNEL_TOKEN=eyJhIjoiNmEwZTljNDhjOGQ0YWUzYTY2ZmVhMzc5ZDRlN2ZhYmMiLCJ0IjoiZGE4MTA4ZWEtYmY2Ny00YzlkLThmYzItOTVjNTA4NWFkMTUwIiwicyI6Ik1qRTVORE0zTldRdE9EazBOUzAwTURaaUxXSmlOVFF0TURGaE5XSXpZMkl3TXpnMSJ9
+      - TUNNEL_PROTOCOL=http2
     depends_on:
       - authentik-server
 

@@ -20,6 +20,17 @@ class AuthController extends _$AuthController {
   static bool _flowInProgress = false;
   static Future<FlowResult>? _pendingFlow;
   
+  /// Check if provider is still mounted (not disposed)
+  bool get _isMounted {
+    try {
+      // Accessing ref will throw if disposed
+      ref.read(authRepositoryProvider);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+  
   @override
   Future<AuthState> build() async {
     // Check for existing session via backend validation
@@ -75,6 +86,8 @@ class AuthController extends _$AuthController {
     _currentChallenge = null;
     
     final repo = await ref.read(authRepositoryProvider.future);
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+    
     await repo.resetFlow();
     
     // Now start fresh
@@ -83,6 +96,8 @@ class AuthController extends _$AuthController {
   
   Future<FlowResult> _doStartFlow() async {
     final repo = await ref.read(authRepositoryProvider.future);
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+    
     final result = await repo.startFlow();
     
     if (result.success && result.challenge != null) {
@@ -95,7 +110,10 @@ class AuthController extends _$AuthController {
   /// Submit identification
   Future<FlowResult> submitIdentification(String email) async {
     final repo = await ref.read(authRepositoryProvider.future);
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+    
     final result = await repo.submitIdentification(email);
+    if (!_isMounted) return result;
     
     if (result.success && result.challenge != null) {
       _currentChallenge = result.challenge;
@@ -111,7 +129,10 @@ class AuthController extends _$AuthController {
   /// Submit password
   Future<FlowResult> submitPassword(String password) async {
     final repo = await ref.read(authRepositoryProvider.future);
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+    
     final result = await repo.submitPassword(password);
+    if (!_isMounted) return result;
     
     if (result.success && result.challenge != null) {
       _currentChallenge = result.challenge;
@@ -127,7 +148,10 @@ class AuthController extends _$AuthController {
   /// Submit TOTP
   Future<FlowResult> submitTotp(String code) async {
     final repo = await ref.read(authRepositoryProvider.future);
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+    
     final result = await repo.submitTotp(code);
+    if (!_isMounted) return result;
     
     if (result.success && result.challenge != null) {
       _currentChallenge = result.challenge;
@@ -144,11 +168,25 @@ class AuthController extends _$AuthController {
   Future<void> _onLoginSuccess() async {
     debugPrint('✅ Login successful!');
     
-    // Mark user as logged in for offline access
-    final repo = await ref.read(authRepositoryProvider.future);
-    await repo.markLoggedIn();
+    // Check if still mounted before proceeding
+    if (!_isMounted) {
+      debugPrint('⚠️ Provider disposed during login, notifying router directly');
+      AuthChangeNotifier.instance.setAuthenticated(true);
+      return;
+    }
     
-    state = const AsyncData(AuthState(status: AuthStatus.authenticated));
+    // Mark user as logged in for offline access
+    try {
+      final repo = await ref.read(authRepositoryProvider.future);
+      await repo.markLoggedIn();
+    } catch (e) {
+      debugPrint('⚠️ Could not mark logged in: $e');
+    }
+    
+    // Update state only if still mounted
+    if (_isMounted) {
+      state = const AsyncData(AuthState(status: AuthStatus.authenticated));
+    }
     
     // Notify the router's auth listener to trigger redirect
     AuthChangeNotifier.instance.setAuthenticated(true);
@@ -157,11 +195,19 @@ class AuthController extends _$AuthController {
   /// Logout
   Future<void> logout() async {
     debugPrint('🚪 initiating logout...');
-    final repo = await ref.read(authRepositoryProvider.future);
-    await repo.clearSession();
+    
+    try {
+      final repo = await ref.read(authRepositoryProvider.future);
+      await repo.clearSession();
+    } catch (e) {
+      debugPrint('⚠️ Logout error: $e');
+    }
     
     _currentChallenge = null;
-    state = const AsyncData(AuthState(status: AuthStatus.unauthenticated));
+    
+    if (_isMounted) {
+      state = const AsyncData(AuthState(status: AuthStatus.unauthenticated));
+    }
     
     // Notify the router's auth listener
     AuthChangeNotifier.instance.setAuthenticated(false);

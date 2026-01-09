@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Internal URL (for server-to-server communication inside K8s cluster)
     authentik_internal_url: str = "http://authentik.aura-auth.svc.cluster.local"
     
+    # OIDC Issuer URL (used for token validation)
+    authentik_issuer: Optional[str] = None
+    
     authentik_client_id: str = ""
     authentik_client_secret: str = ""
     authentik_secret_key: Optional[str] = None
