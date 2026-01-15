@@ -10,6 +10,7 @@ REST endpoints for Google Calendar integration:
 
 import secrets
 import logging
+import html
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
@@ -167,6 +168,10 @@ async def google_calendar_callback(
         
         logger.info(f"✅ Google Calendar connected for user {user_id}, found {len(calendars)} calendars")
         
+        # Sanitize email for HTML output to prevent XSS
+        safe_email = html.escape(email)
+        calendar_count = len(calendars)
+        
         # Return success page
         success_html = f"""
         <!DOCTYPE html>
@@ -199,9 +204,9 @@ async def google_calendar_callback(
         <body>
             <div class="container">
                 <h1>🎉 Calendar Connected!</h1>
-                <p>Successfully connected <strong>{email}</strong></p>
+                <p>Successfully connected <strong>{safe_email}</strong></p>
                 <div class="calendars">
-                    Found {len(calendars)} calendars. You can manage sync settings in the app.
+                    Found {calendar_count} calendars. You can manage sync settings in the app.
                 </div>
                 <p style="margin-top: 30px; font-size: 14px;">You can close this window.</p>
             </div>
@@ -209,7 +214,7 @@ async def google_calendar_callback(
                 // Attempt to close window or notify parent
                 setTimeout(() => {{
                     if (window.opener) {{
-                        window.opener.postMessage({{ type: 'GOOGLE_CALENDAR_CONNECTED', email: '{email}' }}, '*');
+                        window.opener.postMessage({{ type: 'GOOGLE_CALENDAR_CONNECTED', email: '{safe_email}' }}, '*');
                         window.close();
                     }}
                 }}, 2000);
@@ -224,7 +229,8 @@ async def google_calendar_callback(
         
     except Exception as e:
         logger.error(f"Google Calendar callback error: {e}")
-        raise HTTPException(status_code=400, detail=f"Failed to connect: {str(e)}")
+        raise HTTPException(status_code=400, detail="Failed to connect to Google Calendar")
+
 
 
 # -----------------------------------------------------------------------------

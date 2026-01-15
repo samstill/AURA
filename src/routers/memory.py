@@ -4,6 +4,9 @@ Memory Router - Super Memory 3.0 API
 
 API endpoints for the Psychodynamic Memory System.
 Provides access to user profiles, archive search, and memory management.
+
+NOTE: In production, these endpoints should be protected with proper authentication
+to prevent unauthorized access to user memory data.
 """
 
 import logging
@@ -12,6 +15,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from config import settings
 from services.memory_service import memory_service
 
 logger = logging.getLogger(__name__)
@@ -165,7 +169,17 @@ async def create_user_profile(user_id: str):
 async def reset_user_profile(user_id: str):
     """
     Hard reset: Delete all memory profile and archives for a user.
+    
+    WARNING: This is a destructive operation. In production, this should 
+    require authenticated user confirmation.
     """
+    # Security: Block destructive endpoints in production without proper auth
+    if settings.environment != "development":
+        raise HTTPException(
+            status_code=403, 
+            detail="Memory reset requires authentication in production"
+        )
+    
     if not memory_service.is_initialized:
         raise HTTPException(status_code=503, detail="Memory service not initialized")
     
@@ -175,7 +189,7 @@ async def reset_user_profile(user_id: str):
         
     return {
         "success": True,
-        "message": f"All memory data deleted for user {user_id}"
+        "message": "User memory data has been reset"
     }
 
 

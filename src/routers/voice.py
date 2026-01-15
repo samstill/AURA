@@ -14,6 +14,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Qu
 from pydantic import BaseModel
 from typing import Optional
 
+from config import settings
 from dependencies.auth_dependencies import CurrentUser
 from services.authentik_service import authentik_service
 from services.orchestrator_service import orchestrator_service
@@ -206,6 +207,11 @@ async def voice_stream_dev(websocket: WebSocket):
     3. Server -> Binary Audio Chunk ...
     4. Server -> {"status": "turn_complete"}
     """
+    # Security: Block this endpoint in production
+    if settings.environment != "development":
+        await websocket.close(code=4003, reason="Dev endpoints are disabled in production")
+        return
+    
     await websocket.accept()
     # Use a valid UUID for dev user to avoid DB query errors
     user_id = "00000000-0000-0000-0000-000000000000"

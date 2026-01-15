@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from config import settings
 from dependencies.auth_dependencies import CurrentUser
 from services.llm_service import llm_service
 from services.router_service import router_service
@@ -91,7 +92,7 @@ async def send_message(
 
 
 # -----------------------------------------------------------------------------
-# Dev / Test Endpoints (Unauthenticated)
+# Dev / Test Endpoints (Unauthenticated - Development Only)
 # -----------------------------------------------------------------------------
 @router.post("/send/dev")
 async def send_message_dev(request: ChatRequest):
@@ -99,7 +100,16 @@ async def send_message_dev(request: ChatRequest):
     Dev endpoint for testing without Auth headers.
     Uses a hardcoded 'test-user' ID (matches calendar integration UI).
     Uses the full Aura Routing Algorithm.
+    
+    WARNING: Only available in development environment.
     """
+    # Security: Block this endpoint in production
+    if settings.environment != "development":
+        raise HTTPException(
+            status_code=403, 
+            detail="Dev endpoints are disabled in production."
+        )
+    
     user_text = request.message
     user_id = "test-user"  # Must match the user_id used in calendar connection 
     
