@@ -84,13 +84,18 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     
     def validate_secret_key(self) -> bool:
-        """Validate that secret key is properly configured for production."""
+        """
+        Validate that secret key is properly configured for production.
+        
+        Returns True if the secret key is considered secure (not a known default).
+        """
         insecure_defaults = [
-            "CHANGE_ME_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32",
+            "change_me_in_production_use_openssl_rand_hex_32",
             "changeme",
             "secret",
         ]
-        return self.secret_key.lower() not in [s.lower() for s in insecure_defaults]
+        # Check exact matches only (case-insensitive)
+        return self.secret_key.lower() not in insecure_defaults
     
     # -------------------------------------------------------------------------
     # External Services (existing)
