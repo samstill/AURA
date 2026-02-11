@@ -108,6 +108,9 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: aura-authentik-tunnel
     restart: unless-stopped
+    dns:             
+      - 1.1.1.1
+      - 8.8.8.8
     command: tunnel --no-autoupdate run --protocol http2
     environment:
       - TUNNEL_TOKEN=eyJhIjoiNmEwZTljNDhjOGQ0YWUzYTY2ZmVhMzc5ZDRlN2ZhYmMiLCJ0IjoiZGE4MTA4ZWEtYmY2Ny00YzlkLThmYzItOTVjNTA4NWFkMTUwIiwicyI6Ik1qRTVORE0zTldRdE9EazBOUzAwTURaaUxXSmlOVFF0TURGaE5XSXpZMkl3TXpnMSJ9
