@@ -1,0 +1,45 @@
+# =============================================================================
+# Project Aura — Production Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: aura-backend-svc
+  namespace: aura-prod
+  labels:
+    app.kubernetes.io/name: aura-backend
+    app.kubernetes.io/part-of: project-aura
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "aura-backend-config"}'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: aura-backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+---
+# =============================================================================
+# BackendConfig — GKE health check and CDN settings
+# =============================================================================
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: aura-backend-config
+  namespace: aura-prod
+spec:
+  healthCheck:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /health
+    port: 8000
+  timeoutSec: 60
+  connectionDraining:
+    drainingTimeoutSec: 30

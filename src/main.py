@@ -111,13 +111,7 @@ app = FastAPI(
 # Allow Flutter clients from various origins during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",      # Web dev server
-        "http://localhost:8080",      # Alternative web port
-        "http://localhost:9000",      # Authentik
-        "http://10.0.2.2:30000",      # Android emulator
-        "*",                          # TODO: Restrict in production
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

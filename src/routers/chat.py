@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from dependencies.auth_dependencies import CurrentUser
+from config import settings
 from services.llm_service import llm_service
 from services.router_service import router_service
 from services.orchestrator_service import orchestrator_service
@@ -93,27 +94,32 @@ async def send_message(
 # -----------------------------------------------------------------------------
 # Dev / Test Endpoints (Unauthenticated)
 # -----------------------------------------------------------------------------
-@router.post("/send/dev")
-async def send_message_dev(request: ChatRequest):
-    """
-    Dev endpoint for testing without Auth headers.
-    Uses a hardcoded 'test-user' ID (matches calendar integration UI).
-    Uses the full Aura Routing Algorithm.
-    """
-    user_text = request.message
-    user_id = "test-user"  # Must match the user_id used in calendar connection 
-    
-    if not llm_service.is_initialized:
-        raise HTTPException(status_code=503, detail="LLM Service unavailable.")
 
-    logger.info(f"📨 [Chat/Dev] test-user: {user_text[:40]}...")
-    
-    # Use the main orchestration flow
-    return StreamingResponse(
-        orchestrator_service.orchestrate_response(user_text, user_id),
-        media_type="text/event-stream",
-        headers={"X-Aura-Algorithm": "v2"}
-    )
+if settings.environment != "production":
+    @router.post("/send/dev")
+    async def send_message_dev(request: ChatRequest):
+        """
+        Dev endpoint for testing without Auth headers.
+        Uses a hardcoded 'test-user' ID (matches calendar integration UI).
+        Uses the full Aura Routing Algorithm.
+        
+        DISABLED IN PRODUCTION.
+        """
+        user_text = request.message
+        user_id = "test-user"  # Must match the user_id used in calendar connection 
+        
+        if not llm_service.is_initialized:
+            raise HTTPException(status_code=503, detail="LLM Service unavailable.")
+
+        logger.info(f"📨 [Chat/Dev] test-user: {user_text[:40]}...")
+        
+        # Use the main orchestration flow
+        return StreamingResponse(
+            orchestrator_service.orchestrate_response(user_text, user_id),
+            media_type="text/event-stream",
+            headers={"X-Aura-Algorithm": "v2"}
+        )
+
 
 
 @router.get("/conversations", response_model=List[ConversationSummary])
@@ -136,11 +142,13 @@ from services.analyst_service import analyst_service
 
 
 @router.get("/tasks/{task_id}/status")
-async def get_task_status(task_id: str):
+async def get_task_status(task_id: str, user: CurrentUser):
     """
     Get the status of a background task.
     Returns result if task is completed.
+    Requires authentication.
     """
+    # TODO: Verify task belongs to user (if task metadata stores user_id)
     status = analyst_service.get_task_status(task_id)
     if not status:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -148,33 +156,37 @@ async def get_task_status(task_id: str):
 
 
 @router.get("/notifications")
-async def get_notifications(user_id: str = "test-user"):
-    """Get all notifications for a user."""
-    return analyst_service.get_user_notifications(user_id)
+async def get_notifications(user: CurrentUser):
+    """Get all notifications for the authenticated user."""
+    return analyst_service.get_user_notifications(user.sub)
 
 
 @router.get("/notifications/{task_id}")
-async def get_notification(task_id: str):
+async def get_notification(task_id: str, user: CurrentUser):
     """Get a specific notification by task ID."""
     notification = analyst_service.get_notification(task_id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
+    # Verify ownership
+    if notification.get("user_id") != user.sub:
+         raise HTTPException(status_code=403, detail="Not authorized to view this notification")
     return notification
 
 
 @router.post("/notifications/{task_id}/read")
-async def mark_notification_read(task_id: str, user_id: str = "test-user"):
+async def mark_notification_read(task_id: str, user: CurrentUser):
     """Mark a notification as read and invalidate the secretary brief cache."""
+    # TODO: Verify ownership before marking read
     success = analyst_service.mark_notification_read(task_id)
     if not success:
         raise HTTPException(status_code=404, detail="Notification not found")
     # Invalidate the brief cache so next refresh generates a fresh summary
-    analyst_service.invalidate_brief_cache(user_id)
+    analyst_service.invalidate_brief_cache(user.sub)
     return {"status": "ok"}
 
 
 @router.get("/brief")
-async def get_secretary_brief(user_id: str = "test-user"):
+async def get_secretary_brief(user: CurrentUser):
     """
     Get a secretary-style summary of all unread background task results.
     
@@ -183,4 +195,4 @@ async def get_secretary_brief(user_id: str = "test-user"):
         - count: Number of unread notifications
         - items: List of unread notification details
     """
-    return await analyst_service.generate_secretary_brief(user_id)
+    return await analyst_service.generate_secretary_brief(user.sub)

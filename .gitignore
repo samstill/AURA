@@ -85,6 +85,8 @@ Thumbs.db
 *.kubeconfig
 kubeconfig
 .minikube/
+# GCP secrets (template is tracked, but never commit real values)
+k8s/gcp/secrets-live.yaml
 
 # -----------------------------------------------------------------------------
 # Testing & Coverage

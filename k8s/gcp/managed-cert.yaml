@@ -1,0 +1,27 @@
+# =============================================================================
+# Project Aura — Google-Managed SSL Certificates
+# =============================================================================
+# These certificates are automatically provisioned and renewed by Google.
+# Requires DNS A records pointing to the GKE Ingress external IP.
+# =============================================================================
+
+# SSL cert for the API backend
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: aura-api-cert
+  namespace: aura-prod
+spec:
+  domains:
+    - api.encresa.com
+
+---
+# SSL cert for the auth service
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: aura-auth-cert
+  namespace: aura-prod
+spec:
+  domains:
+    - auth.encresa.com

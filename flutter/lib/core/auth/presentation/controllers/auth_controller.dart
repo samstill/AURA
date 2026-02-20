@@ -90,11 +90,14 @@ class AuthController extends _$AuthController {
     
     await repo.resetFlow();
     
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
+
     // Now start fresh
     return startAuthFlow();
   }
   
   Future<FlowResult> _doStartFlow() async {
+    if (!_isMounted) return FlowResult.failure('Provider disposed');
     final repo = await ref.read(authRepositoryProvider.future);
     if (!_isMounted) return FlowResult.failure('Provider disposed');
     

@@ -1,0 +1,90 @@
+# =============================================================================
+# Project Aura — MCP Basic Tools Server (Production)
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-basic
+  namespace: aura-prod
+  labels:
+    app.kubernetes.io/name: mcp-basic
+    app.kubernetes.io/part-of: project-aura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-basic
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-basic
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: server
+          image: asia-south1-docker.pkg.dev/aura-prod-encresa/aura/aura-backend:v2
+          imagePullPolicy: Always
+          command: ["python", "-m", "mcp_server.main"]
+          ports:
+            - containerPort: 8000
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: PORT
+              value: "8000"
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aura-secrets
+                  key: GOOGLE_API_KEY
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aura-secrets
+                  key: GITHUB_CLIENT_ID
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aura-secrets
+                  key: GITHUB_CLIENT_SECRET
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+              ephemeral-storage: "256Mi"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+              ephemeral-storage: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-basic-svc
+  namespace: aura-prod
+spec:
+  selector:
+    app.kubernetes.io/name: mcp-basic
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

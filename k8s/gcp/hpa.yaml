@@ -1,0 +1,51 @@
+# =============================================================================
+# Project Aura — Horizontal Pod Autoscaler
+# =============================================================================
+# Scales pods based on CPU and memory utilization.
+# GKE Autopilot handles node-level scaling automatically.
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aura-backend-hpa
+  namespace: aura-prod
+  labels:
+    app.kubernetes.io/name: aura-backend
+    app.kubernetes.io/part-of: project-aura
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aura-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    # Scale based on CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Scale based on memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    # Scale up quickly (respond to traffic spikes)
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    # Scale down slowly (prevent flapping)
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

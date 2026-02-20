@@ -240,6 +240,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final aura = context.aura;
 
+    // Keep controller alive while screen is mounted
+    ref.watch(authControllerProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(

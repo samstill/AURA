@@ -1,0 +1,98 @@
+# =============================================================================
+# Project Aura — Cloud Build CI/CD Pipeline
+# =============================================================================
+# Trigger: Push to main branch or manual trigger
+# Pipeline: Build → Push → Deploy to GKE
+# =============================================================================
+
+steps:
+  # Step 1: Build Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:latest"
+      - "--cache-from"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:latest"
+      - "."
+    id: "build"
+
+  # Step 2: Push to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend"
+    id: "push"
+    waitFor: ["build"]
+
+  # Step 3: Update image tag in deployment manifests
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        # Replace placeholder image references in deployment manifests
+        sed -i "s|REGION-docker.pkg.dev/PROJECT_ID/aura/aura-backend:latest|${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:${SHORT_SHA}|g" \
+          k8s/gcp/deployment.yaml \
+          k8s/gcp/mcp-deployment.yaml
+    id: "patch-manifests"
+    waitFor: ["push"]
+
+  # Step 4: Deploy to GKE
+  - name: "gcr.io/cloud-builders/kubectl"
+    args:
+      - "apply"
+      - "-f"
+      - "k8s/gcp/namespace.yaml"
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=${_GKE_REGION}"
+      - "CLOUDSDK_CONTAINER_CLUSTER=${_GKE_CLUSTER}"
+    id: "deploy-ns"
+    waitFor: ["patch-manifests"]
+
+  - name: "gcr.io/cloud-builders/kubectl"
+    args:
+      - "apply"
+      - "-f"
+      - "k8s/gcp/"
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=${_GKE_REGION}"
+      - "CLOUDSDK_CONTAINER_CLUSTER=${_GKE_CLUSTER}"
+    id: "deploy-all"
+    waitFor: ["deploy-ns"]
+
+  # Step 5: Wait for rollout
+  - name: "gcr.io/cloud-builders/kubectl"
+    args:
+      - "rollout"
+      - "status"
+      - "deployment/aura-backend"
+      - "-n"
+      - "aura-prod"
+      - "--timeout=300s"
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=${_GKE_REGION}"
+      - "CLOUDSDK_CONTAINER_CLUSTER=${_GKE_CLUSTER}"
+    id: "verify-rollout"
+    waitFor: ["deploy-all"]
+
+# Substitution variables (override via trigger config or CLI)
+substitutions:
+  _REGION: "asia-south1"
+  _REPO: "aura"
+  _GKE_REGION: "asia-south1"
+  _GKE_CLUSTER: "aura-prod-cluster"
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Build images list for vulnerability scanning
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:${SHORT_SHA}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/aura-backend:latest"
+
+timeout: "600s"

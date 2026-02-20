@@ -1,0 +1,22 @@
+# =============================================================================
+# Authentik BackendConfig — GKE L7 Ingress health check
+# =============================================================================
+# Applied separately since Helm doesn't manage GKE-specific CRDs.
+# This is referenced by the authentik-server Service annotation.
+# =============================================================================
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: authentik-backend-config
+  namespace: aura-prod
+spec:
+  healthCheck:
+    checkIntervalSec: 20
+    timeoutSec: 10
+    healthyThreshold: 1
+    unhealthyThreshold: 5
+    type: HTTP
+    requestPath: /-/health/live/
+  timeoutSec: 120
+  connectionDraining:
+    drainingTimeoutSec: 30

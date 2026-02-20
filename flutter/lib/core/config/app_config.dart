@@ -12,7 +12,7 @@ enum Environment { development, staging, production }
 
 /// Centralized app configuration
 class AppConfig {
-  static const Environment environment = Environment.development;
+  static const Environment environment = Environment.production;
   
   // ---------------------------------------------------------------------------
   // Dev Mode Configuration
@@ -20,7 +20,7 @@ class AppConfig {
   
   /// Set to true when running Authentik locally via ./dev.sh --authentik-only
   /// Set to false when using Kubernetes Authentik (port 30080)
-  static const bool useLocalAuthentik = true;
+  static const bool useLocalAuthentik = false;
   
   /// Local Authentik port (from docker-compose.authentik.yml)
   static const int localAuthentikPort = 9000;
@@ -49,6 +49,7 @@ class AppConfig {
   
   /// Get the appropriate host for the current platform
   static String get host {
+    if (environment == Environment.production) return 'api.encresa.com';
     if (kIsWeb) return 'localhost';
     
     if (Platform.isAndroid) {
@@ -65,36 +66,45 @@ class AppConfig {
   // ---------------------------------------------------------------------------
   
   /// Base URL for the Aura Backend API
-  static String get apiBaseUrl => 'http://$host:$backendPort/api/v1';
+  static String get apiBaseUrl {
+    if (environment == Environment.production) return 'https://api.encresa.com/api/v1';
+    return 'http://$host:$backendPort/api/v1';
+  }
   
   /// WebSocket URL for voice streaming
-  static String get wsBaseUrl => 'ws://$host:$backendPort/api/v1';
+  static String get wsBaseUrl {
+    if (environment == Environment.production) return 'wss://api.encresa.com/api/v1';
+    return 'ws://$host:$backendPort/api/v1';
+  }
   
   /// Health check URL
-  static String get healthUrl => 'http://$host:$backendPort/health';
+  static String get healthUrl {
+    if (environment == Environment.production) return 'https://api.encresa.com/health';
+    return 'http://$host:$backendPort/health';
+  }
   
   // ---------------------------------------------------------------------------
   // Auth Configuration (Authentik)
   // ---------------------------------------------------------------------------
   
   /// OAuth2 Client ID - must match Authentik provider
-  static const String clientId = 'XxxliVFhCdjYqGEsp0jkeCCRFchIPeYcPwh5XFSQ';
+  static const String clientId = 'JnbQ3drhh1iMJCnyaE8dSR3cJiRrWaMJ6GJT2msu';
   
   /// Redirect URL for OAuth2 callback
   static const String redirectUrl = 'com.encresa.aura://login-callback';
   
-  /// OAuth2 scopes
-  static const List<String> scopes = ['openid', 'profile', 'email'];
+  /// OAuth2 scopes (includes 'roles' for RBAC)
+  static const List<String> scopes = ['openid', 'profile', 'email', 'roles'];
   
   /// Default authentication flow slug
-  static const String authFlowSlug = 'encresa';
+  static const String authFlowSlug = 'default-authentication-flow';
   
   /// Authentik base URL
   // static String get authentikBaseUrl => 'http://$host:$authentikPort';
   static String get authentikBaseUrl => 'https://auth.encresa.com';
   
   /// OIDC Issuer URL
-  static String get issuer => '$authentikBaseUrl/application/o/aura/';
+  static String get issuer => '$authentikBaseUrl/application/o/aura-mobile/';
   
   /// Authorization endpoint
   static String get authorizationEndpoint => '${issuer}authorize/';

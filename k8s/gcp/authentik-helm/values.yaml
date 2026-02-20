@@ -1,0 +1,187 @@
+# =============================================================================
+# Authentik Helm Chart values — Project Aura
+# =============================================================================
+# Official chart: https://charts.goauthentik.io
+# Chart docs:     https://docs.goauthentik.io/docs/install-config/install/kubernetes
+#
+# SCALING GUIDE (when you need HA):
+#   1. Set server.replicas & worker.replicas to 3
+#   2. Add podAntiAffinity under server.affinity / worker.affinity
+#   3. Switch to Cloud SQL & Memorystore (set postgresql.enabled=false,
+#      redis.enabled=false, and configure externally under global.env)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Global / Authentik core settings
+# ---------------------------------------------------------------------------
+global:
+  # Image version — latest stable release
+  image:
+    repository: ghcr.io/goauthentik/server
+    tag: "2025.12.4"
+    pullPolicy: IfNotPresent
+
+  env:
+    - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+      value: "false"
+    - name: AUTHENTIK_DISABLE_UPDATE_CHECK
+      value: "true"
+    - name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS
+      value: "true"
+    - name: AUTHENTIK_POSTGRESQL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-postgresql
+          key: password
+# ---------------------------------------------------------------------------
+# Authentik Server (the web-facing component)
+# ---------------------------------------------------------------------------
+server:
+  # Cost-optimized: 1 replica today. Change to 3 for HA.
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+      ephemeral-storage: "256Mi"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+      ephemeral-storage: "512Mi"
+
+  # --- Probes ---
+  livenessProbe:
+    httpGet:
+      path: /-/health/live/
+      port: http
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    failureThreshold: 10
+
+  readinessProbe:
+    httpGet:
+      path: /-/health/ready/
+      port: http
+    initialDelaySeconds: 45
+    periodSeconds: 10
+    failureThreshold: 10
+
+  startupProbe:
+    httpGet:
+      path: /-/health/live/
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 30
+
+  # --- Service ---
+  # ClusterIP with GKE NEG + BackendConfig for our existing Ingress
+  service:
+    type: ClusterIP
+    port: 9000
+    annotations:
+      cloud.google.com/neg: '{"ingress": true}'
+      cloud.google.com/backend-config: '{"default": "authentik-backend-config"}'
+
+  # We manage Ingress separately in ingress.yaml — disable Helm's
+  ingress:
+    enabled: false
+
+  # --- Pod Anti-Affinity (uncomment for HA) ---
+  # affinity:
+  #   podAntiAffinity:
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #       - weight: 100
+  #         podAffinityTerm:
+  #           labelSelector:
+  #             matchExpressions:
+  #               - key: app.kubernetes.io/component
+  #                 operator: In
+  #                 values: ["server"]
+  #           topologyKey: kubernetes.io/hostname
+
+# ---------------------------------------------------------------------------
+# Authentik Worker (background task processor)
+# ---------------------------------------------------------------------------
+worker:
+  # Cost-optimized: 1 replica today. Change to 3 for HA.
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+      ephemeral-storage: "256Mi"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+      ephemeral-storage: "512Mi"
+
+  # --- Pod Anti-Affinity (uncomment for HA) ---
+  # affinity:
+  #   podAntiAffinity:
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #       - weight: 100
+  #         podAffinityTerm:
+  #           labelSelector:
+  #             matchExpressions:
+  #               - key: app.kubernetes.io/component
+  #                 operator: In
+  #                 values: ["worker"]
+  #           topologyKey: kubernetes.io/hostname
+
+# ---------------------------------------------------------------------------
+# In-cluster PostgreSQL (bundled with chart)
+# ---------------------------------------------------------------------------
+# For production HA, set enabled=false and configure Cloud SQL externally.
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  auth:
+    # Password is overridden at deploy time via --set
+    password: "override-at-deploy-time"
+  primary:
+    persistence:
+      enabled: true
+      storageClass: "standard-rwo"
+      size: 10Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+        ephemeral-storage: "256Mi"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+        ephemeral-storage: "1Gi"
+
+# ---------------------------------------------------------------------------
+# In-cluster Redis (bundled with chart)
+# ---------------------------------------------------------------------------
+# For production HA, set enabled=false and configure Memorystore externally.
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+        ephemeral-storage: "256Mi"
+      limits:
+        memory: "256Mi"
+        cpu: "250m"
+        ephemeral-storage: "512Mi"
+# ---------------------------------------------------------------------------
+# GKE BackendConfig (health check for L7 Ingress)
+# ---------------------------------------------------------------------------
+# This is applied separately since it uses a GKE-specific CRD.
+# See: k8s/gcp/authentik-helm/backend-config.yaml

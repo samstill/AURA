@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/design_system/design_system.dart';
 
+import 'dart:io';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   

@@ -1,0 +1,59 @@
+# =============================================================================
+# Project Aura — GKE Ingress (GCE L7 Load Balancer)
+# =============================================================================
+# Routes external traffic to backend and auth services with managed SSL.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aura-ingress
+  namespace: aura-prod
+  labels:
+    app.kubernetes.io/part-of: project-aura
+  annotations:
+    # Use GKE default ingress controller (GCE L7 LB)
+    kubernetes.io/ingress.class: "gce"
+    # Attach Google-managed SSL certificates
+    networking.gke.io/managed-certificates: "aura-api-cert,aura-auth-cert"
+    # Redirect HTTP → HTTPS
+    kubernetes.io/ingress.allow-http: "true"
+    networking.gke.io/v1beta1.FrontendConfig: "aura-frontend-config"
+spec:
+  rules:
+    # API backend — api.encresa.com
+    - host: api.encresa.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aura-backend-svc
+                port:
+                  number: 8000
+
+    # Auth service — auth.encresa.com
+    - host: auth.encresa.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: authentik-server
+                port:
+                  number: 80
+
+---
+# =============================================================================
+# FrontendConfig — HTTPS redirect
+# =============================================================================
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: aura-frontend-config
+  namespace: aura-prod
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT

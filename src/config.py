@@ -2,12 +2,14 @@
 Project Aura - Configuration
 ============================
 
+
 Pydantic settings for environment-based configuration.
 All sensitive values are loaded from Kubernetes secrets.
 """
 
+import os
 from functools import lru_cache
-from typing import Optional
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 
 
@@ -28,6 +30,14 @@ class Settings(BaseSettings):
     
     # Base URL for this service (used for OAuth redirects)
     base_url: str = "http://localhost:30000"
+    
+    # CORS allowed origins (comma-separated in env var)
+    cors_origins_str: str = "http://localhost:3000,http://localhost:8080,http://localhost:9000,http://10.0.2.2:30000"
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [o.strip() for o in self.cors_origins_str.split(",") if o.strip()]
     
     # -------------------------------------------------------------------------
     # Authentik IDP (OAuth2/OIDC)
@@ -233,7 +243,7 @@ class Settings(BaseSettings):
         return self.voice_worker_url
     
     class Config:
-        env_file = "../.env"
+        env_file = "../.env" if os.path.exists("../.env") else None
         env_file_encoding = "utf-8"
         case_sensitive = False
 
