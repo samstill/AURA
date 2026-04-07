@@ -11,47 +11,47 @@ dependencies:
     sdk: flutter
 
   # State Management (Riverpod 2.0)
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_riverpod: ^3.3.1
+  riverpod_annotation: ^4.0.2
 
   # Routing
-  go_router: ^14.0.0
+  go_router: ^17.2.0
 
   # Authentication (OAuth2/OIDC)
-  flutter_appauth: ^6.0.0
-  flutter_secure_storage: ^9.0.0
+  flutter_appauth: ^12.0.0
+  flutter_secure_storage: ^10.0.0
 
   # Networking
-  dio: ^5.4.0
-  dio_cookie_manager: ^3.1.1
-  cookie_jar: ^4.0.8
-  web_socket_channel: ^2.4.0
+  dio: ^5.9.2
+  dio_cookie_manager: ^3.4.0
+  cookie_jar: ^4.0.9
+  web_socket_channel: ^3.0.3
 
   # Serialization
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.11.0
 
   # UI
-  cupertino_icons: ^1.0.6
-  google_fonts: ^6.1.0
-  flutter_animate: ^4.5.0 # For "Jelly" and "Sacrifice" micro-interactions
+  cupertino_icons: ^1.0.9
+  google_fonts: ^8.0.2
+  flutter_animate: ^4.5.2 # For "Jelly" and "Sacrifice" micro-interactions
   lucide_icons: ^0.257.0 # Clean geometric icons for glassmorphic aesthetic
-  flutter_svg: ^2.0.10 # For SVG logo rendering
-  webview_flutter: ^4.10.0 # For animated SVG rendering in splash screen
+  flutter_svg: ^2.2.4 # For SVG logo rendering
+  webview_flutter: ^4.13.1 # For animated SVG rendering in splash screen
 
   # Utilities
-  intl: ^0.19.0
-  uuid: ^4.2.2
-  path_provider: ^2.1.2 # For persistent cookie storage
+  intl: ^0.20.2
+  uuid: ^4.5.3
+  path_provider: ^2.1.5 # For persistent cookie storage
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
-  build_runner: ^2.4.8
-  riverpod_generator: ^2.4.0
-  freezed: ^2.4.7
-  json_serializable: ^6.7.1
+  flutter_lints: ^6.0.0
+  build_runner: ^2.13.1
+  riverpod_generator: ^4.0.3
+  freezed: ^3.2.5
+  json_serializable: ^6.13.1
 
 flutter:
   uses-material-design: true
