@@ -8,10 +8,12 @@ API endpoints for:
 3. User: Connecting/Disconnecting tools
 """
 
+from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional, Dict
 
+from config import settings
 from services.database_service import database_service
 
 router = APIRouter()
@@ -39,14 +41,24 @@ async def register_tool(payload: ToolRegisterRequest):
     """
     Admin: Register a new tool.
     In a real app, this should be protected by admin role check.
+    
+    WARNING: This endpoint should be protected by authentication in production.
     """
+    # Security: Block in production if not in development mode
+    if settings.environment != "development":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin endpoints require authentication in production"
+        )
+    
     try:
         # Pydantic model to dict
         tool_data = payload.model_dump()
         result = await database_service.register_tool(tool_data)
         return {"status": "created", "tool": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details
+        raise HTTPException(status_code=500, detail="Failed to register tool")
 
 
 @router.post("/admin/enhance_prompt")
@@ -76,7 +88,8 @@ Be specific and action-oriented. Output ONLY the description, no quotes or label
         
         return {"enhanced_description": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details
+        raise HTTPException(status_code=500, detail="Failed to enhance prompt")
 
 
 @router.get("/tools")
@@ -126,14 +139,23 @@ async def connect_tool(tool_id: str, payload: ToolConnectRequest):
         )
         return {"status": "updated", "enabled": payload.enabled}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update tool connection")
 
 
 @router.delete("/admin/tools/{tool_id}")
 async def delete_tool(tool_id: str):
     """
     Admin: Delete (soft) a tool.
+    
+    WARNING: This endpoint should be protected by authentication in production.
     """
+    # Security: Block in production if not in development mode
+    if settings.environment != "development":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin endpoints require authentication in production"
+        )
+    
     try:
         success = await database_service.delete_tool(tool_id)
         if not success:
@@ -142,7 +164,7 @@ async def delete_tool(tool_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete tool")
 
 
 @router.get("/tools/{tool_id}/oauth/start")
@@ -150,11 +172,22 @@ async def start_oauth(tool_id: str):
     """
     Generate OAuth2 authorization URL for a tool.
     """
-    from config import settings
+    # Security: Block this endpoint in production without proper credentials
+    if settings.environment != "development" and not settings.github_client_id:
+        raise HTTPException(
+            status_code=503,
+            detail="GitHub OAuth not configured"
+        )
     
     try:
-        # Use configured Client ID or fallback to placeholder (with warning)
-        client_id = settings.github_client_id or "YOUR_GITHUB_CLIENT_ID"
+        # Use configured Client ID or provide clear error
+        client_id = settings.github_client_id
+        if not client_id:
+            raise HTTPException(
+                status_code=503,
+                detail="GitHub OAuth not configured. Set GITHUB_CLIENT_ID environment variable."
+            )
+        
         redirect_uri = f"{settings.base_url}/api/v1/tools/oauth/callback"
         
         # Include tool_id in state so we know which tool to activate on callback
@@ -171,8 +204,10 @@ async def start_oauth(tool_id: str):
         
         return {"url": github_url}
         
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to generate OAuth URL")
 
 
 @router.get("/tools/oauth/callback")
@@ -182,11 +217,17 @@ async def oauth_callback(code: str, state: str = None):
     Exchange authorization code for access token and store it.
     """
     import httpx
-    from config import settings
     from fastapi.responses import RedirectResponse
     
     tool_id = state  # We passed tool_id as state
     user_id = "00000000-0000-0000-0000-000000000000"  # Demo user
+    
+    # Security: Block this endpoint in production without proper credentials
+    if not settings.github_client_id or not settings.github_client_secret:
+        return RedirectResponse(
+            url=f"/admin_console.html?error={quote('GitHub OAuth not configured')}",
+            status_code=302
+        )
     
     try:
         # Exchange code for access token
@@ -205,7 +246,8 @@ async def oauth_callback(code: str, state: str = None):
             token_data = response.json()
             
             if "access_token" not in token_data:
-                error = token_data.get("error_description", "Unknown error")
+                # URL-encode error message to prevent XSS/injection
+                error = quote(token_data.get("error_description", "Authentication failed"))
                 return RedirectResponse(
                     url=f"/admin_console.html?error={error}",
                     status_code=302
@@ -229,7 +271,9 @@ async def oauth_callback(code: str, state: str = None):
             )
             
     except Exception as e:
+        # URL-encode error message to prevent XSS/injection
+        safe_error = quote("OAuth callback failed")
         return RedirectResponse(
-            url=f"/admin_console.html?error={str(e)}",
+            url=f"/admin_console.html?error={safe_error}",
             status_code=302
         )

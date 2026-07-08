@@ -45,6 +45,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"   Environment: {settings.environment}")
     logger.info(f"   Debug: {settings.debug}")
     
+    # Security check: Warn about insecure secret key in production
+    if settings.environment == "production":
+        if not settings.validate_secret_key():
+            logger.critical("❌ SECURITY WARNING: Using insecure default SECRET_KEY in production!")
+            logger.critical("   Please set a secure SECRET_KEY environment variable.")
+            raise RuntimeError("Insecure SECRET_KEY in production environment")
+    
     # Initialize Authentik service
     try:
         await authentik_service.initialize()
@@ -108,19 +115,25 @@ app = FastAPI(
 # -----------------------------------------------------------------------------
 # CORS Configuration
 # -----------------------------------------------------------------------------
-# Allow Flutter clients from various origins during development
+# Allow Flutter clients from various origins
+# In production, only specific origins are allowed
+_cors_origins = [
+    "http://localhost:3000",      # Web dev server
+    "http://localhost:8080",      # Alternative web port
+    "http://localhost:9000",      # Authentik
+    "http://10.0.2.2:30000",      # Android emulator
+]
+
+# Only allow wildcard in development mode
+if settings.environment == "development" and settings.debug:
+    _cors_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",      # Web dev server
-        "http://localhost:8080",      # Alternative web port
-        "http://localhost:9000",      # Authentik
-        "http://10.0.2.2:30000",      # Android emulator
-        "*",                          # TODO: Restrict in production
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
     expose_headers=["X-Aura-Route"],
 )
 

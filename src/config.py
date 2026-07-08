@@ -75,12 +75,27 @@ class Settings(BaseSettings):
     # Session & JWT
     # -------------------------------------------------------------------------
     # Secret key for signing session cookies (generate with: openssl rand -hex 32)
+    # Must be set via SECRET_KEY environment variable in production
     secret_key: str = "CHANGE_ME_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32"
     
     # JWT algorithm and expiration
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
+    
+    def validate_secret_key(self) -> bool:
+        """
+        Validate that secret key is properly configured for production.
+        
+        Returns True if the secret key is considered secure (not a known default).
+        """
+        insecure_defaults = [
+            "change_me_in_production_use_openssl_rand_hex_32",
+            "changeme",
+            "secret",
+        ]
+        # Check exact matches only (case-insensitive)
+        return self.secret_key.lower() not in insecure_defaults
     
     # -------------------------------------------------------------------------
     # External Services (existing)
@@ -166,7 +181,8 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Integrations (OAuth credentials)
     # -------------------------------------------------------------------------
-    github_client_id: Optional[str] = "Ov23li9L5k6tqPjRk70h"
+    # GitHub OAuth credentials should be set via environment variables
+    github_client_id: Optional[str] = None
     github_client_secret: Optional[str] = None
     
     # -------------------------------------------------------------------------
